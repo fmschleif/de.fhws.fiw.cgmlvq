@@ -19,5 +19,5 @@ for row in csv_reader:
     y.append( row[4] )
 
 
-cgmlvq = CGMLVQ( 2, None, None )
+cgmlvq = CGMLVQ( 2, 50 )
 cgmlvq.fit( X, y )
