@@ -7,7 +7,7 @@ X = []
 y = []
 
 
-csv_file = open( "c:/Users/Matthias Nunn/Desktop/Projekte/de.fhws.fiw.cgmlvq/Python/iris.csv" )  # only "iris.csv" not working?!
+csv_file = open( "c:/Users/Matthias Nunn/Desktop/Projekte/de.fhws.fiw.cgmlvq/Python/iris-small.csv" )  # only "iris-small.csv" not working?!
 
 csv_reader = csv.reader( csv_file, delimiter=',' )
 
