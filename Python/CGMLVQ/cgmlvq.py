@@ -1,4 +1,4 @@
-from scipy.fft import fft
+from scipy.fft import fft, ifft
 
 import math
 import numpy as np
@@ -15,6 +15,8 @@ class CGMLVQ:
 
     def fit( self, X, y ):
 
+        # TODO: test
+
         X = np.array( X )
         y = np.array( y )
 
@@ -24,7 +26,9 @@ class CGMLVQ:
 
         X_frequency = self.__fourier__( X, self.coefficients )
 
-        gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.coefficients, y.T )
+        gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.coefficients, np.unique(y).T )
+
+        backProts = self.__iFourier__( gmlvq_system.protosInv, row_length )  # wrapper around inverse Fourier
 
 
     def predict( self, X ):
@@ -32,58 +36,60 @@ class CGMLVQ:
         pass
 
 
-    def __fourier__( self, X, r ):  # r = coefficients
-
-        """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
-        """
-
-        Y = fft( X )  # TODO: correct: fft( X, axis=2 )
-
-        enabled = np.zeros( Y.shape[1] )
-
-        enabled[0:r+1] = 1
-
-        Y = Y[:, enabled==1]
-
-        return Y
-
-
-    def __single__( self, fvec, lbl, totalsteps, plbl ):
+    def __check_arguments__( self, plbl, lbl, fvec, ncop, totalsteps ):
 
         # TODO: implement
 
-        self.__do_zscore__( fvec )
+        # check consistency of some arguments and input parameters
 
-        return 1, 2, 3
+        # plbl:  prototype labels
+        # lbl :  data set labels
+        # fvec:  feature vectors in data set
+        # ncop:  number of copies in step size control procedure
+        # totalsteps: total number of batch gradient update steps
 
+        # output:
+        # lbl :  data set labels, protentially transposed for consistency
 
-    def __do_zscore__( self, fvec ):
+        # TODO: error prüfen -> abbrechen
 
-        # TODO: test
+        if( lbl.shape[1] > 1 ):   # lbl may be column or row vector
+            lbl = lbl.T
+            print('vector lbl has been transposed')
 
-        """ Perform a z-score transformation of fvec
+        if fvec.shape[0] != len(lbl):
+            print('number of training labels differs from number of samples')
 
-        Parameters
-        ----------
-        fvec : feature vectors
+        if( min(lbl)!=1 or max(lbl)!=len(np.unique(lbl)) ):
+            #print(['unique(lbl)=  ',num2str(np.unique(lbl))])
+            print('data labels should be: 1,2,3,...,nclasses')
 
-        Returns
-        -------
-        fvec : z-score transformed feature vectors
-        mf : vector of feauter means used in z-score transformation
-        st : vector of standard deviations in z-score transformation
-        """
+        if( len(np.unique(plbl))>2 ):
+            print( ['multi-class problem, ROC analysis is for class 1 (neg.)', ' vs. all others (pos.)'] )
 
-        ndim = fvec.shape[1]  # dimension ndim of data
+        if( len(np.unique(plbl)) != len(np.unique(lbl)) ):
+            #print(['unique(plbl)=   ',num2str(unique(plbl))])
+            print('number of prototype labels must equal number of classes')
 
-        mf = st = np.zeros( (1, ndim) )  # initialize vectors mf and st
+        # MATTHIAS
+        #if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
+        #   print(['unique(plbl)=   ',num2str(unique(plbl))])
+        #   print('prototype labels inconsistent with data, please rename/reorder')
 
-        for i in range(0, ndim):
-            mf[i] = np.mean( fvec[:,i] )           # mean of feature i
-            st[i] = np.std( fvec[:,i] )            # st.dev. of feature i
-            fvec[:,i] = (fvec[:,i]-mf[i]) / st[i]  # transformed feature
+#        for i in range(0, fvec.shape[1]):
+#            st[i] = std[fvec[:,i]]  # standard deviation of feature i
 
-        return fvec, mf, st
+        print(' ')
+#        print(['minimum standard deviation of features: ',num2str(min(st))])
+        print(' ')
+
+#        if( min(st) < 1.e-10 ):
+#            print('at least one feature displays (close to) zero variance')
+
+        if( ncop >= totalsteps ):
+            print('number of gradient steps must be larger than ncop')
+
+        return lbl
 
 
     def __compute_costs__( self, fvec, lbl, prot, plbl, omat, mu ):
@@ -161,19 +167,6 @@ class CGMLVQ:
         return costf, marg, crout, score
 
 
-    def __euclid__( self, X, W, omat ):
-
-        # TODO: test
-
-        # D = (X' - P')' * (omat' * omat) * (X' - P');
-        # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
-
-        D = np.linalg.norm( omat*(X-W).T )^2
-        D = D.real
-
-        return D
-
-
     def __compute_roc__( self, binlbl, score, nthresh=5000 ):
 
         # TODO: test
@@ -243,7 +236,7 @@ class CGMLVQ:
 
     def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam, mu, mode ):
 
-        # TODO: implement
+        # TODO: test
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
@@ -265,10 +258,10 @@ class CGMLVQ:
         omat : omega matrix after update
         """
 
-        ndim = fvec.sahpe[1]    # dimension of feature vectors
+        ndim = fvec.shape[1]    # dimension of feature vectors
         nfv = len(lbl)      # number of feature vectors (training samples)
         cls = np.unique(lbl)      # set of class labels
-        np = proti.shape[0]     # number of prototypes
+        npt = proti.shape[0]     # number of prototypes
 
         omat = omegai
         lambdaa = omat.T * omat   # omega and lambdaa before step
@@ -280,16 +273,20 @@ class CGMLVQ:
         chm = 0*omat  # initialize change of prot,omega
 
         for i in range(0, nfv):  # loop through (sum over) all training examples
+
             fvi = fvec[i,:]  # actual example
             lbi = lbl(i)  # actual example
+
             # calculate squared distances to all prototypes
-            dist = nan(np,1)                 # define squared distances
-            for j in range(0, np):                       # distances from all prototypes
+            dist = np.empty( npt, 1 )  # define squared distances
+            dist[:] = np.nan
+
+            for j in range(0, npt):  # distances from all prototypes
                 dist[j] = self.__euclid__( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
-            correct = np.where( plbl == lbi )     # all correct prototype indices
-            incorrect = np.where( plbl != lbi )     # all wrong   prototype indices
+            correct = np.where( plbl == lbi )    # all correct prototype indices
+            incorrect = np.where( plbl != lbi )  # all wrong   prototype indices
 
             [dJ, JJ] = min( dist(correct) )    # correct winner
             [dK, KK] = min( dist(incorrect) )  # wrong winner
@@ -303,8 +300,9 @@ class CGMLVQ:
             wK = prot[kwin,:]
 
             # GMLVQ prototype update for one example fvi
-            DJ = (fvi-wJ).T;  DK = (fvi-wK).T        # displacement vectors
-            #for complex valued data, "." has been added for normal transpose
+            DJ = (fvi-wJ).T  # displacement vectors
+            DK = (fvi-wK).T  # displacement vectors
+            # for complex valued data, "." has been added for normal transpose
 
             norm_factor = (dJ+dK)^2                # denominator of prefactor
             dwJ = -(dK/norm_factor)*lambdaa*DJ      # change of correct winner
@@ -326,20 +324,20 @@ class CGMLVQ:
         # separate nomralization for prototypes and the matrix
         # computation of actual changes, diagonal matrix imposed here if nec.
         n2chw = 0               # zero initial value of sum
-        for ni in range(0, np):             # loop through (sum over) set of prototypes  # total length of concatenated prototype vec.
+        for ni in range(0, npt):             # loop through (sum over) set of prototypes  # total length of concatenated prototype vec.
             n2chw = n2chw + np.dot(chp[ni,:],chp[ni,:])
 
-        if (mode==2):             # if diagonal matrix used only
+        if( mode == 2 ):             # if diagonal matrix used only
             chm = np.diag(np.diag(chm))  # reduce to diagonal changes
 
-        n2chm = sum(sum(abs(chm).^2))  # total 'length' of matrix update
+        n2chm = sum(sum(abs(chm)*2))  # total 'length' of matrix update
 
-        #     n2chm = sum(sum(abs(chm).^2));% total 'length' of matrix update
-        #     for complex valued data abs has been added
+        # n2chm = sum(sum(abs(chm).^2));% total 'length' of matrix update
+        # for complex valued data abs has been added
 
         # final, normalized gradient updates after 1 loop through examples
-        prot = prot  + etap * chp/np.sqrt(n2chw)
-        omat = omat  + etam * chm/np.sqrt(n2chm)
+        prot = prot + etap * chp/np.sqrt(n2chw)
+        omat = omat + etam * chm/np.sqrt(n2chm)
 
         # if diagonal matrix only
         if( mode == 2 ):                  # probably obsolete as chm diagonal
@@ -347,14 +345,393 @@ class CGMLVQ:
 
         #  nullspace correction using Moore Penrose pseudo-inverse
         if( mode == 1 ):
-            xvec = [fvec;prot]               # concat. protos and fvecs
+            xvec = np.concatenate((fvec,prot))               # concat. protos and fvecs
             omat = ((omat*xvec.T)*np.linalg.pinv(xvec.T))  # corrected omega matrix
 
         if( mode == 3 ):
             omat = np.identity(ndim)  # reset to identity regardless of gradients
 
         # normalization of omega, corresponds to Trace(lambda) = 1
-        omat = omat / np.sqrt( sum(sum(abs(omat).^2)) )
+        omat = omat / np.sqrt( sum(sum(abs(omat)*2)) )
 
         # one full, normalized gradient step performed, return omat and prot
         return prot, omat
+
+
+    def __do_inversezscore__( self, fvec, mf, st ):
+
+        ndim = fvec.shape[1]
+
+        for i in range(0,ndim):
+            fvec[:,i] = fvec[:,i] * st[i]+mf[i]
+
+        return fvec
+
+
+    def __do_zscore__( self, fvec ):
+
+        # TODO: test
+
+        """ Perform a z-score transformation of fvec
+
+        Parameters
+        ----------
+        fvec : feature vectors
+
+        Returns
+        -------
+        fvec : z-score transformed feature vectors
+        mf : vector of feauter means used in z-score transformation
+        st : vector of standard deviations in z-score transformation
+        """
+
+        ndim = fvec.shape[1]  # dimension ndim of data
+
+        mf = st = np.zeros( (1, ndim) )  # initialize vectors mf and st
+
+        for i in range( 0, ndim ):
+            mf[i] = np.mean( fvec[:,i] )           # mean of feature i
+            st[i] = np.std( fvec[:,i] )            # st.dev. of feature i
+            fvec[:,i] = (fvec[:,i]-mf[i]) / st[i]  # transformed feature
+
+        return fvec, mf, st
+
+
+    def __euclid__( self, X, W, omat ):
+
+        # TODO: test
+
+        # D = (X' - P')' * (omat' * omat) * (X' - P');
+        # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
+
+        D = np.linalg.norm( omat*(X-W).T )^2
+        D = D.real
+
+        return D
+
+
+    def __fourier__( self, X, r ):  # r = coefficients
+
+        """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
+        """
+
+        Y = fft( X )  # TODO: correct: fft( X, axis=2 )
+
+        enabled = np.zeros( Y.shape[1] )
+
+        enabled[0:r+1] = 1
+
+        Y = Y[:, enabled==1]
+
+        return Y
+
+
+    def __iFourier__( self, X, L ):
+
+        """ Wrapper around "ifft" to retrieve the original time domain signal "y", given Fourier coefficients "X" and the length "L" of the original time domain signal.
+        """
+
+        y = np.zeros(X.shape[0], L)    # the size of the original data matrix
+        enabled = np.zeros(1, L)
+        r = X.shape[1] - 1
+        enabled[1:1+r] = 1  # TODO: 0?
+#        enabled[end-r+1:end] = 1
+
+#        if size(y(:,enabled==1),2) == size([X fliplr(conj(X(:,2:end)))],2):
+#            y(:,enabled==1) = [X fliplr(conj(X(:,2:end)))]
+
+        y = ifft(y)
+
+        return y
+
+
+    def __set_initial__( self, fvec, lbl, plbl, mode, rndinit ):
+
+        """ Initialization of prototypes close to class conditional means small random displacements to break ties
+
+        Parameters
+        ----------
+        fvec : feature vectors
+        lbl : data labels
+        plbl : prototype labels
+        mode : 0,1 for full matrix (GMLVQ)
+               2 for diagonal matrix (GRLVQ)
+               3 for prop. to identity (GLVQ)
+        """
+
+        ndim  = fvec.shape[1]  # dimension of feature vectors
+        nprots= len(plbl)  # total number of prototypes
+
+        # TODO: checking!
+        proti = []
+
+#        for ic in range(0, nprots):  # compute class-conditional means
+#            proti[ic,:] = np.mean(fvec[lbl==plbl[ic],:], 1)
+
+        # displace randomly from class-conditional means
+#        proti= proti.*(0.99+0.02*rand(size(proti)))
+        # to do: run k-means per class
+
+        # (global) matrix initialization, identity or random
+        omi = np.identity( ndim )          # works for all values of mode if rndinit == 0
+
+        if( mode!=3 and rndinit==1 ):  # does not apply for mode==3 (GLVQ)
+            omi = np.random.rand(ndim) - 0.5
+            omi = omi.T*omi  # square symmetric
+            #  matrix of uniform random numbers
+
+        if( mode == 2 ):
+            omi = np.diag(np.diag(omi))  # restrict to diagonal matrix
+
+        omi = omi / np.sqrt(sum(sum(abs(omi)*2)))
+
+        return proti, omi
+
+
+    def __set_parameters__( self, fvec ):
+
+        """ Set general parameters
+            Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
+        """
+
+        nfv = fvec.shape[0]
+        ndim = fvec.shape[1]
+
+        # GMLVQ parameters, explained below
+        showplots = 1
+        doztr     = 1
+        mode      = 1
+        rndinit   = 0
+        mu        = 0
+
+        # showplots (0 or 1): plot learning curves etc? recommended: 1
+        # doztr (0 or 1): perform z-score transformation based on training set
+        # mode
+        # 0 for matrix without null-space correction
+        # 1 for matrix with null-space correction
+        # 2 for diagonal matrix (GRLVQ)                         discouraged
+        # 3 for GLVQ with Euclidean distance (equivalent)
+        # rndinit
+        # 0 for initialization of relevances as identity matrix
+        # 1 for randomized initialization of relevance matrix
+        # mu
+        # control parameter of penalty term for singularity of Lambda
+        # mu=0: unmodified GMLVQ
+        # mu>0: prevents singular Lambda
+        # mu very large: Lambda proportional to Identity (Euclidean)
+
+
+        # parameters of stepsize adaptation
+        if( mode < 2 ):  # full matrix updates with (0) or w/o (1) null space correction
+            etam = 2  # suggestion: 2
+            etap = 1  # suggestion: 1
+            if( mode == 0 ):
+                print('matrix relevances without null-space correction')
+            if (mode==1):
+                print('matrix relevances with null-space correction')
+
+        elif( mode == 2 ): # diagonal relevances only, DISCOURAGED
+            print('diagonal relevances, not encouraged, sensitive to step sizes')
+            etam   = 0.2  # initital step size for diagonal matrix updates
+            etap   = 0.1  # initital step size for prototype update
+
+        elif( mode == 3 ): # GLVQ, equivalent to Euclidean distance
+            print('GLVQ without relevances')
+            etam=0
+            etap = 1
+
+        decfac = 1.5       # step size factor (decrease) for Papari steps
+        incfac = 1.1       # step size factor (increase) for all steps
+        ncop = 5           # number of waypoints stored and averaged
+
+        if( nfv <= ndim and mode == 0 ):
+            print('dim. > # of examples, null-space correction recommended')
+
+        if( doztr == 0 ):
+            print('no z-score transformation, you may have to adjust step sizes')
+            if( mode < 3 ):
+                print('rescale relevances for proper interpretation')
+
+        return showplots, doztr, mode, rndinit, etam, etap, mu, decfac, incfac, ncop
+
+
+    def __single__( self, fvec, lbl, totalsteps, plbl ):
+
+        # TODO: test
+
+        showplots, doztr, mode, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
+
+        etam = etam0  # initial step size matrix
+        etap = etap0  # intitial step size prototypes
+
+        lbl = self.__check_arguments__( plbl,lbl,fvec,ncop,totalsteps )
+
+        # reproducible random numbers
+        #rng('default')
+        rngseed=291024
+        #rng(rngseed)
+
+        nfv = fvec.shape[0]           # number of feature vectors in training set
+        ndim = fvec.shape[1]          # dimension of feature vectors
+        ncls = len( np.unique(lbl) )  # number of classes
+        nprots = len(plbl)            # total number of prototypes
+
+        te=np.zeros( (totalsteps+1,1) )  # define total error
+
+        # define cost function and AUC(ROC)
+        cf = auc = te
+
+        cw = np.zeros( (totalsteps+1,ncls) )  # define class-wise errors
+
+        stepsizem = te  # stepsize matrix in the course of training
+        stepsizep = te  # stepsize prototypes in the course ...
+
+        mf=np.zeros( (1,ndim) )  # initialize feature means
+        st=np.ones( (1,ndim) )  # and standard deviations
+
+        if( doztr == 1 ):
+            fvec, mf, st = self.__do_zscore__( fvec )  # perform z-score transformation
+        else:
+            _, mf, st = self.__do_zscore__( fvec )      # evaluate but don't apply
+
+        # initialize prototypes and omega
+        proti, omi = self.__set_initial__( fvec, lbl, plbl, mode, rndinit )
+
+        # initial values
+        prot = proti
+        om = omi
+
+        # copies of prototypes and omegas stored in protcop and omcop
+        # for the adaptive step size procedure
+        protcop = np.zeros(ncop, prot.shape[0], prot.shape[1] )
+        omcop   = np.zeros(ncop, om.shape[0], om.shape[1] )
+
+        # calculate initial values for learning curves
+        costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+
+        # TODO: checking!
+        te[0] = sum(marg>0) / nfv
+        cf[0] = costf
+        stepsizem[0] = etam
+        stepsizep[0] = etap
+
+        tpr, fpr, auroc, thresholds = self.__compute_roc__ (lbl>1, score )
+        # TODO: checking!
+        auc[0] = auroc
+
+        # perform the first ncop steps of gradient descent
+        for inistep in range( 0, ncop ):
+
+            # actual batch gradient step
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
+            protcop[inistep,:,:] = prot
+            omcop[inistep,:,:] = om
+
+            # determine and save training set performances
+            costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+            te[inistep+1] = sum(marg>0) / nfv
+            cf[inistep+1] = costf
+            stepsizem[inistep+1] = etam
+            stepsizep[inistep+1] = etap
+
+            # compute training set errors and cost function values
+            for icls in range( 0,ncls ):
+                # compute class-wise errors (positive margin = error)
+                cw[inistep+1,icls] = sum(marg(lbl==icls)>0)/sum(lbl==icls)
+
+            # training set roc with respect to class 1 versus all others only
+            tpr, fpr, auroc, thresholds = self.__compute_roc__( lbl>1, score )
+            auc[inistep+1] = auroc
+
+        # compute cost functions, crisp labels, margins and scores
+        # scores with respect to class 1 (negative) or all others (positive)
+        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+
+        # perform totalsteps training steps
+        for jstep in range( ncop, totalsteps ):
+
+            # calculate mean positions over latest steps
+            protmean = np.squeeze( np.mean(protcop,1) )
+            ommean = np.squeeze( np.mean(omcop,1) )
+            ommean = ommean / np.sqrt(sum(sum(abs(ommean)*2)))
+            # note: normalization does not change cost function value
+            #       but is done here for consistency
+
+            # compute cost functions for mean prototypes, mean matrix and both
+            costmp, _, _, score = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0  )
+            costmm, _, _, score = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, mu )
+            # [costm, ~,~,score ] = compute_costs(fvec,lbl,protmean,plbl,ommean,mu);
+
+            # remember old positions for Papari procedure
+            ombefore = om
+            protbefore = prot
+
+            # perform next step and compute costs etc.
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
+
+            costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+
+            # by default, step sizes are increased in every step
+            etam = etam * incfac  # (small) increase of step sizes
+            etap = etap * incfac  # at each learning step to enforce oscillatory behavior
+
+            # costfunction values to compare with for Papari procedure
+            # evaluated w.r.t. changing only matrix or prototype
+            costfp, _, _, score = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0  )
+            costfm, _, _, score = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       mu )
+
+            # heuristic extension of Papari procedure
+            # treats matrix and prototype step sizes separately
+            if( costmp <= costfp ):  # decrease prototype step size and jump
+                # to mean prototypes
+                etap = etap / decfac
+                prot = protmean
+
+            if( costmm <= costfm ):  # decrease matrix step size and jump
+                # to mean matrix
+                etam = etam / decfac
+                om = ommean
+
+            # update the copies of the latest steps, shift stack of stored configs.
+            # plenty of room for improvement, I guess ...
+            for iicop in range(0,ncop-1):
+                protcop[iicop,:,:] = protcop[iicop+1,:,:]
+                omcop[iicop,:,:] = omcop[iicop+1,:,:]
+
+            protcop[ncop,:,:] = prot
+            omcop[ncop,:,:] = om
+
+            # determine training and test set performances
+            # here: costfunction without penalty term!
+            costf0, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, 0 )
+
+            # compute total and class-wise training set errors
+            te[jstep+1] = sum(marg>0) / nfv
+            cf[jstep+1] = costf0
+
+            for icls in range(0,ncls):
+                cw[jstep+1,icls] = sum(marg(lbl==icls)>0) / sum(lbl==icls)
+
+            stepsizem[jstep+1] = etam
+            stepsizep[jstep+1] = etap
+
+            # ROC with respect to class 1 (negative) vs. all others (positive)
+            binlbl = lbl>1
+            tpr, fpr, auroc, thresholds = self.__compute_roc__( binlbl, score )
+            auc[jstep+1] = auroc
+
+        # if the data was z transformed then also save the inverse prototypes,
+        # actually it is not necessary since the mf and st are returned.
+        if( doztr == 1 ):
+            protsInv = self.__do_inversezscore__( prot, mf, st )
+        else:
+            protsInv = prot
+
+        lambdaa = om.T*om   # actual relevance matrix
+
+        # define structures corresponding to the trained system and training curves
+        gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
+        training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
+        param_set = {'totalsteps':totalsteps, 'doztr':doztr, 'mode':mode, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+
+        return gmlvq_system, training_curves, param_set
