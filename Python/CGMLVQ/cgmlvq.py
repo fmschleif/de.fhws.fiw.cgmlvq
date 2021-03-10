@@ -26,7 +26,7 @@ class CGMLVQ:
 
         X_frequency = self.__fourier__( X, self.coefficients )
 
-        gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.coefficients, np.unique(y).T )
+        gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.epochs, np.unique(y).T )
 
         backProts = self.__iFourier__( gmlvq_system.protosInv, row_length )  # wrapper around inverse Fourier
 
@@ -38,7 +38,7 @@ class CGMLVQ:
 
     def __check_arguments__( self, plbl, lbl, fvec, ncop, totalsteps ):
 
-        # TODO: implement
+        # TODO: TESTED
 
         # check consistency of some arguments and input parameters
 
@@ -53,6 +53,8 @@ class CGMLVQ:
 
         # TODO: error prüfen -> abbrechen
 
+        # TODO: matthias
+        lbl = np.asmatrix( lbl, dtype=int )
         if( lbl.shape[1] > 1 ):   # lbl may be column or row vector
             lbl = lbl.T
             print('vector lbl has been transposed')
@@ -94,7 +96,7 @@ class CGMLVQ:
 
     def __compute_costs__( self, fvec, lbl, prot, plbl, omat, mu ):
 
-        # TODO: test
+        # TODO: TESTED
 
         """ Calculates gmlvq cost function, labels and margins for a set of labelled feature vectors, given a particular lvq system
 
@@ -117,11 +119,11 @@ class CGMLVQ:
 
         nfv= fvec.shape[0]
         ndim = fvec.shape[1]  # and dim. of feature vectors
-        np = len( plbl )
+        npp = len( plbl )
 
         costf = 0
         marg = np.zeros( (1,nfv) )
-        score = marg
+        score = np.zeros( (1,nfv) )
         crout = np.zeros( (1,nfv) )
 
         omat = omat / np.sqrt(sum(sum(omat*omat)))  # normalized omat
@@ -129,47 +131,49 @@ class CGMLVQ:
         for iii in range(0, nfv):  # loop through examples
             fvc = fvec[iii, :]
             lbc = lbl[iii]
-            distl = np.empty( np, 1 )
+            distl = np.empty( (npp, 1) )
             distl[:] = np.nan
-            for jk in range(0, np):
+            for jk in range(0, npp):
                 distl[jk] = self.__euclid__( fvc, prot[jk,:], omat )
             # find the two winning prototypes for example iii
-            correct   = np.where( plbl == lbc )
-            incorrect = np.where( plbl != lbc )
-            [dJJ, JJJ] = min( distl(correct) )
-            [dKK, KKK] = min( distl(incorrect) )
-            JJ = correct[JJJ]
-            KK = incorrect[KKK]  # winner indices
+            correct   = np.where( plbl == lbc )[1]  # TODO: Matthias
+            incorrect = np.where( plbl != lbc )[1]  # TODO: Matthias
+            dJJ = min( distl[correct] )    # TODO: Matthias
+            dKK = min( distl[incorrect] ) # TODO: Matthias
+            JJJ = np.where( distl[correct] == dJJ )[1] # TODO: Matthias
+            KKK = np.where( distl[incorrect] == dKK )[1] # TODO: Matthias
+            JJ = correct[JJJ][0]
+            KK = incorrect[KKK][0]  # winner indices
 
             costf = costf + (dJJ-dKK) / (dJJ+dKK) / nfv
 
-            marg[iii] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
+            marg[0,iii] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
 
             # un-normalized difference of distances
             if( lbc == 1 ):
                 # score(iii)= 1./(1+exp((dKK-dJJ)/2))  # "the larger the better"
-                score[iii] = dKK-dJJ
+                score[0,iii] = dKK - dJJ
                 # distdiff(iii)=dKK-dJJ
                 # score (iii) = 0.5* (1+marg(iii))
             else:
                 # score(iii)= 1./(1+exp((dJJ-dKK)/2))  # "the larger the worse"
-                score[iii] = dJJ-dKK
+                score[0,iii] = dJJ - dKK
                 # distdiff(iii)=dJJ-dKK
                 # score (iii) = 0.5* (1-marg(iii))
 
-            crout[iii] = plbl[JJ] * (dJJ<=dKK) + plbl(KK) * (dJJ>dKK)
+            crout[0,iii] = plbl[JJ] * (dJJ<=dKK) + plbl[KK] * (dJJ>dKK)
             # the class label according to nearest prototype
 
         # add penalty term
         if( mu > 0 ):
             costf = costf-mu / 2*np.log(np.det(omat*omat.T)) / nfv
 
-        return costf, marg, crout, score
+        return costf, crout, marg, score
 
 
     def __compute_roc__( self, binlbl, score, nthresh=5000 ):
 
-        # TODO: test
+        # TODO: TESTED
 
         """ Threshold-based computation of the ROC scores are rescaled to fall into the range 0...1 and then compared with nthresh equi-distant thresholds note that nthresh must be large enough to guarantee correct ROC computation.
 
@@ -190,18 +194,19 @@ class CGMLVQ:
         # only available with appropriate toolbox
 
         # heuristic rescaling of the scores to range 0....1  to be done: re-scale according to observed range of values
-        score = 1./(1+np.exp(score/2))
+        score = 1 / (1 + np.exp(score/2))
 
+        binlbl = binlbl.astype(int)  # True/False to 0,1
         target = binlbl.T  # should be 0,1
         output = score
         len( binlbl )
 
-        tu = np.unique(target)  # define binary target values
-        t1 = tu(1)           # target value t1 representing "negative" class
-        t2 = tu(2)           # target value t2 representing "positive" class
+        tu = np.unique(target, axis=1)  # define binary target values
+        t1 = tu[0][0]           # target value t1 representing "negative" class
+        t2 = tu[0][1]           # target value t2 representing "positive" class
 
-        npos = sum(target==t2)  # number of positive samples
-        nneg = sum(target==t1)  # number of negative samples
+        npos = np.sum(target == t2)  # number of positive samples
+        nneg = np.sum(target == t1)  # number of negative samples
 
         # for proper "threshold-averaged" ROC (see paper by Fawcett)
         # we use "nthresh" equi-distant thresholds between 0 and 1
@@ -213,30 +218,30 @@ class CGMLVQ:
         thresh = np.linspace(0,1,nthresh+1)  # odd number is actually used
         # so value 0.5 is in the list
 
-        fpr = np.zeros( 1, nthresh+1 )  # false positive rates
-        tpr = fpr                       # true positive rates
-        tpr[0] = 1  # only positives, so tpr=fpr=1
-        fpr[0] = 1     # only positives, so tpr=fpr=1
+        fpr = np.zeros( (1, nthresh+1) )  # false positive rates
+        tpr = np.zeros( (1, nthresh+1) )                       # true positive rates
+        tpr[0][0] = 1  # only positives, so tpr=fpr=1
+        fpr[0][0] = 1     # only positives, so tpr=fpr=1
 
         for i in range(0, nthresh-1):
             # count true positves, false positives etc.
-            tp = sum( target(score>thresh[i+1]) == t2 )
-            fp = sum( target(score>thresh[i+1]) == t1 )
-            fn = sum( target(score<=thresh[i+1]) == t2 )
-            tn = sum( target(score<=thresh[i+1]) == t1 )
+            tp = np.sum( target[score>thresh[i+1]] == t2 )
+            fp = np.sum( target[score>thresh[i+1]] == t1 )
+            fn = np.sum( target[score<=thresh[i+1]] == t2 )
+            tn = np.sum( target[score<=thresh[i+1]] == t1 )
             # compute corresponding rates
-            tpr[i+1] = tp/(tp+fn)
-            fpr[i+1] = fp/(tn+fp)
+            tpr[0][i+1] = tp / (tp + fn)
+            fpr[0][i+1] = fp / (tn + fp)
 
         # simple numerical integration (trapezoidal rule)
-        auroc = -np.trapz(fpr,tpr)  # minus sign due to order of values
+        auroc = -np.trapz(fpr,tpr)[0]  # minus sign due to order of values
 
         return tpr, fpr, auroc, thresh
 
 
     def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam, mu, mode ):
 
-        # TODO: test
+        # TODO: TESTED
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
@@ -260,7 +265,7 @@ class CGMLVQ:
 
         ndim = fvec.shape[1]    # dimension of feature vectors
         nfv = len(lbl)      # number of feature vectors (training samples)
-        cls = np.unique(lbl)      # set of class labels
+        cls = np.unique(lbl, axis=0)      # set of class labels
         npt = proti.shape[0]     # number of prototypes
 
         omat = omegai
@@ -269,31 +274,34 @@ class CGMLVQ:
         # omat=sqrtm(lambdaa);
         prot = proti              # prototypes before step
 
-        chp = 0*prot
-        chm = 0*omat  # initialize change of prot,omega
+        chp = 0 * prot
+        chm = 0 * omat  # initialize change of prot,omega
 
         for i in range(0, nfv):  # loop through (sum over) all training examples
 
             fvi = fvec[i,:]  # actual example
-            lbi = lbl(i)  # actual example
+            lbi = lbl[i]  # actual example
 
             # calculate squared distances to all prototypes
-            dist = np.empty( npt, 1 )  # define squared distances
+            dist = np.empty( (npt, 1) )  # define squared distances
             dist[:] = np.nan
 
             for j in range(0, npt):  # distances from all prototypes
                 dist[j] = self.__euclid__( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
-            correct = np.where( plbl == lbi )    # all correct prototype indices
-            incorrect = np.where( plbl != lbi )  # all wrong   prototype indices
+            correct = np.where( plbl == lbi )[1]  # TODO: Matthias: doppelt!    # all correct prototype indices
+            incorrect = np.where( plbl != lbi )[1]  # all wrong   prototype indices
 
-            [dJ, JJ] = min( dist(correct) )    # correct winner
-            [dK, KK] = min( dist(incorrect) )  # wrong winner
+            dJ = min( dist[correct] )    # correct winner
+            dK = min( dist[incorrect] )  # wrong winner
+
+            JJ = np.where( dist[correct] == dJ )[1]
+            KK = np.where( dist[incorrect] == dK )[1]
 
             # winner indices
-            jwin = correct(JJ)
-            kwin = incorrect (KK)
+            jwin = correct[JJ][0]
+            kwin = incorrect[KK][0]
 
             # winning prototypes
             wJ = prot[jwin,:]
@@ -304,12 +312,12 @@ class CGMLVQ:
             DK = (fvi-wK).T  # displacement vectors
             # for complex valued data, "." has been added for normal transpose
 
-            norm_factor = (dJ+dK)^2                # denominator of prefactor
-            dwJ = -(dK/norm_factor)*lambdaa*DJ      # change of correct winner
-            dwK =  (dJ/norm_factor)*lambdaa*DK      # change of incorrect winner
+            norm_factor = (dJ+dK)**2                # denominator of prefactor
+            dwJ = np.dot( -(dK/norm_factor) * lambdaa, DJ )      # change of correct winner
+            dwK = np.dot(  (dJ/norm_factor) * lambdaa, DK )     # change of incorrect winner
             # matrix update, single (global) matrix omat for one example
-            f1 = ( dK/norm_factor)*(omat*DJ)*DJ.T   # term 1 of matrix change
-            f2 = (-dJ/norm_factor)*(omat*DK)*DK.T   # term 2 of matrix change
+            f1 = ( dK/norm_factor)[0] * (omat*np.asmatrix(DJ).T) * DJ   # term 1 of matrix change
+            f2 = (-dJ/norm_factor)[0] * (omat*np.asmatrix(DK).T) * DK   # term 2 of matrix change
 
             # negative gradient update added up over examples
             chp[jwin,:] = chp[jwin,:] - dwJ.T  # correct    winner summed update
@@ -318,19 +326,19 @@ class CGMLVQ:
 
         # singularity control: add  derivative of penalty term times mu
         if( mu > 0 ):
-            chm = chm + mu * np.linalg.pinv(omat.T)
+            chm = chm + mu * np.linalg.pinv( omat.T )
 
         # compute normalized gradient updates (length 1)
         # separate nomralization for prototypes and the matrix
         # computation of actual changes, diagonal matrix imposed here if nec.
         n2chw = 0               # zero initial value of sum
         for ni in range(0, npt):             # loop through (sum over) set of prototypes  # total length of concatenated prototype vec.
-            n2chw = n2chw + np.dot(chp[ni,:],chp[ni,:])
+            n2chw = n2chw + np.dot( chp[ni,:], chp[ni,:] )
 
         if( mode == 2 ):             # if diagonal matrix used only
             chm = np.diag(np.diag(chm))  # reduce to diagonal changes
 
-        n2chm = sum(sum(abs(chm)*2))  # total 'length' of matrix update
+        n2chm = np.sum(np.sum(np.absolute(chm)**2))  # total 'length' of matrix update
 
         # n2chm = sum(sum(abs(chm).^2));% total 'length' of matrix update
         # for complex valued data abs has been added
@@ -340,25 +348,27 @@ class CGMLVQ:
         omat = omat + etam * chm/np.sqrt(n2chm)
 
         # if diagonal matrix only
-        if( mode == 2 ):                  # probably obsolete as chm diagonal
-            omat = np.diag(np.diag(omat))  # reduce to diagonal matrix
+        if( mode == 2 ):                     # probably obsolete as chm diagonal
+            omat = np.diag( np.diag(omat) )  # reduce to diagonal matrix
 
         #  nullspace correction using Moore Penrose pseudo-inverse
         if( mode == 1 ):
-            xvec = np.concatenate((fvec,prot))               # concat. protos and fvecs
-            omat = ((omat*xvec.T)*np.linalg.pinv(xvec.T))  # corrected omega matrix
+            xvec = np.concatenate( (fvec, prot) )               # concat. protos and fvecs
+            omat = ((omat*xvec.T) * np.linalg.pinv(xvec.T))  # corrected omega matrix
 
         if( mode == 3 ):
-            omat = np.identity(ndim)  # reset to identity regardless of gradients
+            omat = np.identity( ndim )  # reset to identity regardless of gradients
 
         # normalization of omega, corresponds to Trace(lambda) = 1
-        omat = omat / np.sqrt( sum(sum(abs(omat)*2)) )
+        omat = omat / np.sqrt(np.sum(np.sum(np.absolute(omat)**2)))
 
         # one full, normalized gradient step performed, return omat and prot
         return prot, omat
 
 
     def __do_inversezscore__( self, fvec, mf, st ):
+
+        # TODO: test
 
         ndim = fvec.shape[1]
 
@@ -370,7 +380,7 @@ class CGMLVQ:
 
     def __do_zscore__( self, fvec ):
 
-        # TODO: test
+        # TODO: TESTED
 
         """ Perform a z-score transformation of fvec
 
@@ -387,30 +397,33 @@ class CGMLVQ:
 
         ndim = fvec.shape[1]  # dimension ndim of data
 
-        mf = st = np.zeros( (1, ndim) )  # initialize vectors mf and st
+        mf = np.zeros( (1, ndim), dtype=np.cdouble )  # initialize vectors mf and st
+        st = np.zeros( (1, ndim), dtype=np.cdouble )  # TODO: Matthias: reicht normal?
 
         for i in range( 0, ndim ):
-            mf[i] = np.mean( fvec[:,i] )           # mean of feature i
-            st[i] = np.std( fvec[:,i] )            # st.dev. of feature i
-            fvec[:,i] = (fvec[:,i]-mf[i]) / st[i]  # transformed feature
+            mf[0,i] = np.mean( fvec[:,i] )             # mean of feature i       # TODO: Matthias
+            st[0,i] = np.std( fvec[:,i], ddof=1 )      # st.dev. of feature i    # ||
+            fvec[:,i] = (fvec[:,i]-mf[0,i]) / st[0,i]  # transformed feature     # ||
 
         return fvec, mf, st
 
 
     def __euclid__( self, X, W, omat ):
 
-        # TODO: test
+        # TODO: TESTED
 
         # D = (X' - P')' * (omat' * omat) * (X' - P');
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
 
-        D = np.linalg.norm( omat*(X-W).T )^2
+        D = np.linalg.norm( omat * (X-W).T )**2
         D = D.real
 
         return D
 
 
     def __fourier__( self, X, r ):  # r = coefficients
+
+        # TODO: TESTED
 
         """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
         """
@@ -447,6 +460,8 @@ class CGMLVQ:
 
     def __set_initial__( self, fvec, lbl, plbl, mode, rndinit ):
 
+        # TODO: TESTED
+
         """ Initialization of prototypes close to class conditional means small random displacements to break ties
 
         Parameters
@@ -463,13 +478,13 @@ class CGMLVQ:
         nprots= len(plbl)  # total number of prototypes
 
         # TODO: checking!
-        proti = []
+        proti = np.zeros( (nprots, nprots), dtype=np.cdouble )
 
-#        for ic in range(0, nprots):  # compute class-conditional means
-#            proti[ic,:] = np.mean(fvec[lbl==plbl[ic],:], 1)
+        for ic in range(0, nprots):  # compute class-conditional means
+            proti[ic,:] = np.mean( fvec[np.where(lbl == plbl[ic]),:][0], axis=0 )  # TODO: MAtthias
 
         # displace randomly from class-conditional means
-#        proti= proti.*(0.99+0.02*rand(size(proti)))
+        proti = proti * (0.99 + 0.02 * np.random.rand(proti.shape[0], proti.shape[1]))  # TODO: Matthias: Matlab erzeugt imemr selbe
         # to do: run k-means per class
 
         # (global) matrix initialization, identity or random
@@ -483,7 +498,7 @@ class CGMLVQ:
         if( mode == 2 ):
             omi = np.diag(np.diag(omi))  # restrict to diagonal matrix
 
-        omi = omi / np.sqrt(sum(sum(abs(omi)*2)))
+        omi = omi / np.sqrt(sum(sum(abs(omi)**2)))
 
         return proti, omi
 
@@ -557,6 +572,9 @@ class CGMLVQ:
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
+        # TODO: Matthias
+        plbl = np.array( plbl, dtype=int )
+
         # TODO: test
 
         showplots, doztr, mode, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
@@ -564,7 +582,7 @@ class CGMLVQ:
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
 
-        lbl = self.__check_arguments__( plbl,lbl,fvec,ncop,totalsteps )
+        lbl = self.__check_arguments__( plbl, lbl, fvec, ncop, totalsteps )
 
         # reproducible random numbers
         #rng('default')
@@ -573,21 +591,22 @@ class CGMLVQ:
 
         nfv = fvec.shape[0]           # number of feature vectors in training set
         ndim = fvec.shape[1]          # dimension of feature vectors
-        ncls = len( np.unique(lbl) )  # number of classes
-        nprots = len(plbl)            # total number of prototypes
+        ncls = len( np.unique(plbl) )  # number of classes  # TODO: Matthias
+        nprots = len( plbl )          # total number of prototypes
 
-        te=np.zeros( (totalsteps+1,1) )  # define total error
+        te = np.zeros( (totalsteps+1,1) )  # define total error
 
         # define cost function and AUC(ROC)
-        cf = auc = te
+        cf = np.zeros( (totalsteps+1,1) )  # TODO: Matthias:
+        auc = np.zeros( (totalsteps+1,1) )
 
         cw = np.zeros( (totalsteps+1,ncls) )  # define class-wise errors
 
-        stepsizem = te  # stepsize matrix in the course of training
-        stepsizep = te  # stepsize prototypes in the course ...
+        stepsizem = np.zeros( (totalsteps+1,1) )  # stepsize matrix in the course of training
+        stepsizep = np.zeros( (totalsteps+1,1) )  # stepsize prototypes in the course ...
 
-        mf=np.zeros( (1,ndim) )  # initialize feature means
-        st=np.ones( (1,ndim) )  # and standard deviations
+        mf = np.zeros( (1,ndim) )  # initialize feature means
+        st = np.ones( (1,ndim) )  # and standard deviations
 
         if( doztr == 1 ):
             fvec, mf, st = self.__do_zscore__( fvec )  # perform z-score transformation
@@ -603,20 +622,19 @@ class CGMLVQ:
 
         # copies of prototypes and omegas stored in protcop and omcop
         # for the adaptive step size procedure
-        protcop = np.zeros(ncop, prot.shape[0], prot.shape[1] )
-        omcop   = np.zeros(ncop, om.shape[0], om.shape[1] )
+        protcop = np.zeros( (prot.shape[0], ncop, prot.shape[1]) )  # !! spalte, zeile, dim
+        omcop   = np.zeros( (om.shape[0], ncop, om.shape[1]) )
 
         # calculate initial values for learning curves
         costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
 
-        # TODO: checking!
-        te[0] = sum(marg>0) / nfv
+        te[0] = np.sum(marg>0) / nfv
         cf[0] = costf
         stepsizem[0] = etam
         stepsizep[0] = etap
 
-        tpr, fpr, auroc, thresholds = self.__compute_roc__ (lbl>1, score )
-        # TODO: checking!
+        tpr, fpr, auroc, thresholds = self.__compute_roc__( lbl>1, score )
+
         auc[0] = auroc
 
         # perform the first ncop steps of gradient descent
@@ -624,7 +642,7 @@ class CGMLVQ:
 
             # actual batch gradient step
             prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
-            protcop[inistep,:,:] = prot
+            protcop[inistep,:,:] = prot  # TODO: Matthias DEBUG
             omcop[inistep,:,:] = om
 
             # determine and save training set performances
