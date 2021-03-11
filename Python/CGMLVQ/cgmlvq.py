@@ -415,6 +415,9 @@ class CGMLVQ:
         # D = (X' - P')' * (omat' * omat) * (X' - P');
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
 
+        # TODO: Matthias
+        omat = np.array( omat )
+
         D = np.linalg.norm( omat * (X-W).T )**2
         D = D.real
 
@@ -642,20 +645,20 @@ class CGMLVQ:
 
             # actual batch gradient step
             prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
-            protcop[inistep,:,:] = prot  # TODO: Matthias DEBUG
-            omcop[inistep,:,:] = om
+            protcop[:,inistep,:] = prot
+            omcop[:,inistep,:] = om
 
             # determine and save training set performances
             costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
-            te[inistep+1] = sum(marg>0) / nfv
+            te[inistep+1] = np.sum(marg>0) / nfv
             cf[inistep+1] = costf
             stepsizem[inistep+1] = etam
             stepsizep[inistep+1] = etap
 
             # compute training set errors and cost function values
-            for icls in range( 0,ncls ):
+            for icls in range( 1, ncls+1 ):  # TODO: Matthias: bleibt bei 1 wegen labels ?! und +1 bei ncls hinzu und -1 bei icls zwei zeilen drunter dazu
                 # compute class-wise errors (positive margin = error)
-                cw[inistep+1,icls] = sum(marg(lbl==icls)>0)/sum(lbl==icls)
+                cw[inistep+1, icls-1] = np.sum(marg[0, np.where(lbl==icls)[0]] > 0) / np.sum(lbl==icls)
 
             # training set roc with respect to class 1 versus all others only
             tpr, fpr, auroc, thresholds = self.__compute_roc__( lbl>1, score )
@@ -671,7 +674,7 @@ class CGMLVQ:
             # calculate mean positions over latest steps
             protmean = np.squeeze( np.mean(protcop,1) )
             ommean = np.squeeze( np.mean(omcop,1) )
-            ommean = ommean / np.sqrt(sum(sum(abs(ommean)*2)))
+            ommean = ommean / np.sqrt(np.sum(np.sum(np.abs(ommean)*2)))
             # note: normalization does not change cost function value
             #       but is done here for consistency
 
@@ -712,7 +715,7 @@ class CGMLVQ:
 
             # update the copies of the latest steps, shift stack of stored configs.
             # plenty of room for improvement, I guess ...
-            for iicop in range(0,ncop-1):
+            for iicop in range( 0, ncop-1 ):
                 protcop[iicop,:,:] = protcop[iicop+1,:,:]
                 omcop[iicop,:,:] = omcop[iicop+1,:,:]
 
@@ -724,11 +727,11 @@ class CGMLVQ:
             costf0, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, 0 )
 
             # compute total and class-wise training set errors
-            te[jstep+1] = sum(marg>0) / nfv
+            te[jstep+1] = np.sum(marg>0) / nfv
             cf[jstep+1] = costf0
 
-            for icls in range(0,ncls):
-                cw[jstep+1,icls] = sum(marg(lbl==icls)>0) / sum(lbl==icls)
+            for icls in range( 0, ncls ):
+                cw[jstep+1,icls] = np.sum(marg(lbl==icls) > 0) / np.sum(lbl==icls)
 
             stepsizem[jstep+1] = etam
             stepsizep[jstep+1] = etap
