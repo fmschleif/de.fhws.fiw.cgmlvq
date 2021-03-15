@@ -1,4 +1,4 @@
-from CGMLVQ.cgmlvq import CGMLVQ
+from cgmlvq import CGMLVQ
 
 import csv
 
@@ -7,7 +7,7 @@ X = []
 y = []
 
 
-csv_file = open( "c:/Users/Matthias Nunn/Desktop/Projekte/de.fhws.fiw.cgmlvq/Python/iris-small.csv" )  # only "iris-small.csv" not working?!
+csv_file = open( "c:/Users/Matthias Nunn/Desktop/Projekte/de.fhws.fiw.cgmlvq/Python/iris-small.csv" )  # TODO: only "iris-small.csv" not working?!
 
 csv_reader = csv.reader( csv_file, delimiter=',' )
 
