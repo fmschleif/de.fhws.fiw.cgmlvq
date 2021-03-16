@@ -14,7 +14,7 @@ function [lbl] = check_arguments(plbl,lbl,fvec,ncop,totalsteps)
 
 if(size(lbl,2)>1);   % lbl may be column or row vector
     lbl=lbl';
-    warning('vector lbl has been transposed');  % MATTHIAS: zeile zu spaltenvektor
+    warning('vector lbl has been transposed');
 end;
 
 if size(fvec,1) ~= length(lbl) 
@@ -36,7 +36,7 @@ if (length(unique(plbl)) ~= length(unique(lbl)))
    error('number of prototype labels must equal number of classes');
 end; 
 
-% MATTHIAS
+% TODO: MATTHIAS
 %if (sum( unique(plbl')~=unique(lbl)) >0 ) 
 %   warning(['unique(plbl)=   ',num2str(unique(plbl))]);
 %   error('prototype labels inconsistent with data, please rename/reorder'); 
