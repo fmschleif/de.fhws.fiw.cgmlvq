@@ -71,7 +71,7 @@ class CGMLVQ:
             #print(['unique(plbl)=   ',num2str(unique(plbl))])
             print('number of prototype labels must equal number of classes')
 
-        # MATTHIAS
+        # TODO: MATTHIAS
         #if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
         #   print(['unique(plbl)=   ',num2str(unique(plbl))])
         #   print('prototype labels inconsistent with data, please rename/reorder')
@@ -413,6 +413,16 @@ class CGMLVQ:
 
         # D = (X' - P')' * (omat' * omat) * (X' - P');
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
+
+        D = np.linalg.norm( np.dot(omat, np.array([X-W]).T) )**2
+        D = D.real
+
+        return D
+
+
+    def __euclid_cc__( self, X, W, omat ):
+
+        # complex conjugating
 
         D = np.linalg.norm( vdot(omat, np.array([X-W]).T) )**2
         D = D.real
