@@ -169,7 +169,7 @@ class CGMLVQ:
 
         # add penalty term
         if( mu > 0 ):
-            costf = costf - mu / 2 * np.log(np.det(omat*omat.T)) / nfv
+            costf = costf - mu / 2 * np.log(np.linalg.det(omat*omat.T)) / nfv
 
         return costf, crout, marg, score
 
