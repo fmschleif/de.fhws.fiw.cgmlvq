@@ -267,7 +267,7 @@ class CGMLVQ:
 
         # omega and lambdaa before step
         omat = omegai
-        lambdaa = vdot( omat.T, omat )
+        lambdaa = omat.conj().T @ omat
 
         # omat=sqrtm(lambdaa);
         prot = proti              # prototypes before step
@@ -293,11 +293,8 @@ class CGMLVQ:
             correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
             incorrect = np.where( np.array([plbl]) != lbi )[1]  # all wrong   prototype indices
 
-            dJ = min( dist[correct] )    # correct winner
-            dK = min( dist[incorrect] )  # wrong winner
-
-            JJ = np.where( dist[correct]   == dJ )[0]
-            KK = np.where( dist[incorrect] == dK )[0]
+            dJ, JJ = dist[correct].min(0), dist[correct].argmin(0)      # correct winner
+            dK, KK = dist[incorrect].min(0), dist[incorrect].argmin(0)  # wrong winner
 
             # winner indices
             jwin = correct[JJ][0]
@@ -314,24 +311,21 @@ class CGMLVQ:
 
             norm_factor = (dJ + dK)**2  # denominator of prefactor
 
-            dwJ = vdot( -(dK/norm_factor) * lambdaa, DJ )  # change of correct winner
-            dwK = vdot(  (dJ/norm_factor) * lambdaa, DK )  # change of incorrect winner
+            dwJ = -(dK/norm_factor) * lambdaa @ DJ  # change of correct winner
+            dwK =  (dJ/norm_factor) * lambdaa @ DK  # change of incorrect winner
 
             # matrix update, single (global) matrix omat for one example
-            f1 = vdot( (( dK/norm_factor) * vdot(omat, DJ)), DJ.T )
-            f2 = vdot( ((-dJ/norm_factor) * vdot(omat, DK)), DK.T )
-
-            f1 = np.conj( f1 )  # vorzeichen bei imaginärteil umkehren
-            f2 = np.conj( f2 )
+            f1 = ( dK/norm_factor) * (omat@DJ) @ DJ.conj().T
+            f2 = (-dJ/norm_factor) * (omat@DK) @ DK.conj().T
 
             # negative gradient update added up over examples
-            chp[jwin,:] = chp[jwin,:] - dwJ.T  # correct   winner summed update
-            chp[kwin,:] = chp[kwin,:] - dwK.T  # incorrect winner summed update
-            chm = chm - (f1 + f2)              # matrix summed update
+            chp[jwin,:] = chp[jwin,:] - dwJ.conj().T  # correct   winner summed update
+            chp[kwin,:] = chp[kwin,:] - dwK.conj().T  # incorrect winner summed update
+            chm = chm - (f1 + f2)                     # matrix summed update
 
         # singularity control: add  derivative of penalty term times mu
         if( mu > 0 ):
-            chm = chm + mu * np.linalg.pinv( omat.T )
+            chm = chm + mu * np.linalg.pinv( omat.T )  # TODO: Matthias: prüfen
 
         # compute normalized gradient updates (length 1)
         # separate nomralization for prototypes and the matrix
@@ -347,8 +341,8 @@ class CGMLVQ:
         # for complex valued data abs has been added
 
         # final, normalized gradient updates after 1 loop through examples
-        prot = prot + np.conj( etap * chp / np.sqrt(n2chw) )
-        omat = omat +          etam * chm / np.sqrt(n2chm)
+        prot = prot + etap * chp / np.sqrt(n2chw)
+        omat = omat + etam * chm / np.sqrt(n2chm)
 
         # if diagonal matrix only
         if( mode == 2 ):                     # probably obsolete as chm diagonal
@@ -356,8 +350,8 @@ class CGMLVQ:
 
         #  nullspace correction using Moore Penrose pseudo-inverse
         if( mode == 1 ):
-            xvec = np.concatenate( (fvec, prot) )                       # concat. protos and fvecs
-            omat = np.dot(np.dot(omat,xvec.T), np.linalg.pinv(xvec.T))  # corrected omega matrix
+            xvec = np.concatenate( (fvec, prot) )                            # concat. protos and fvecs
+            omat = (omat @ xvec.conj().T) @ np.linalg.pinv( xvec.conj().T )  # corrected omega matrix
 
         if( mode == 3 ):
             omat = np.identity( ndim )  # reset to identity regardless of gradients
@@ -412,7 +406,7 @@ class CGMLVQ:
         # D = (X' - P')' * (omat' * omat) * (X' - P');
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
 
-        D = np.linalg.norm( np.dot(omat, np.array([X-W]).T) )**2
+        D = np.linalg.norm( omat @ np.array([X-W]).T )**2
         D = D.real
 
         return D
