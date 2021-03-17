@@ -49,8 +49,6 @@ class CGMLVQ:
         # output:
         # lbl :  data set labels, protentially transposed for consistency
 
-        # TODO: error prüfen -> abbrechen
-
         # TODO: matthias
         lbl = np.array([ lbl ], dtype=int )
         if( lbl.shape[1] > 1 ):   # lbl may be column or row vector
@@ -58,33 +56,34 @@ class CGMLVQ:
             print('vector lbl has been transposed')
 
         if fvec.shape[0] != len(lbl):
-            print('number of training labels differs from number of samples')
+            raise ValueError('number of training labels differs from number of samples')
 
         if( min(lbl)!=1 or max(lbl)!=len(np.unique(lbl)) ):
-            #print(['unique(lbl)=  ',num2str(np.unique(lbl))])
-            print('data labels should be: 1,2,3,...,nclasses')
+            print('unique(lbl)=  ' + str(np.unique(lbl)))
+            raise ValueError('data labels should be: 1,2,3,...,nclasses')
 
         if( len(np.unique(plbl))>2 ):
             print( ['multi-class problem, ROC analysis is for class 1 (neg.)', ' vs. all others (pos.)'] )
 
         if( len(np.unique(plbl)) != len(np.unique(lbl)) ):
-            #print(['unique(plbl)=   ',num2str(unique(plbl))])
-            print('number of prototype labels must equal number of classes')
+            print('unique(plbl)=   ' + str(np.unique(plbl)))
+            raise ValueError('number of prototype labels must equal number of classes')
 
         # TODO: MATTHIAS
         #if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
-        #   print(['unique(plbl)=   ',num2str(unique(plbl))])
+        #   print('unique(plbl)=   ' + str(np.unique(plbl)))
         #   print('prototype labels inconsistent with data, please rename/reorder')
 
-#        for i in range(0, fvec.shape[1]):
-#            st[i] = std[fvec[:,i]]  # standard deviation of feature i
+        st = np.zeros( fvec.shape[1] )
+        for i in range(0, fvec.shape[1]):
+            st[i] = np.std( fvec[:,i], ddof=1 )  # standard deviation of feature i
 
         print(' ')
-#        print(['minimum standard deviation of features: ',num2str(min(st))])
+        print('minimum standard deviation of features: ' + str(min(st)))
         print(' ')
 
-#        if( min(st) < 1.e-10 ):
-#            print('at least one feature displays (close to) zero variance')
+        if( min(st) < 1.e-10 ):
+            print('at least one feature displays (close to) zero variance')
 
         if( ncop >= totalsteps ):
             print('number of gradient steps must be larger than ncop')
