@@ -69,10 +69,9 @@ class CGMLVQ:
             print('unique(plbl)=   ' + str(np.unique(plbl)))
             raise ValueError('number of prototype labels must equal number of classes')
 
-        # TODO: MATTHIAS
-        #if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
-        #   print('unique(plbl)=   ' + str(np.unique(plbl)))
-        #   print('prototype labels inconsistent with data, please rename/reorder')
+        if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
+           print('unique(plbl)=   ' + str(np.unique(plbl)))
+           raise ValueError('prototype labels inconsistent with data, please rename/reorder')
 
         st = np.zeros( fvec.shape[1] )
         for i in range(0, fvec.shape[1]):
@@ -83,10 +82,10 @@ class CGMLVQ:
         print(' ')
 
         if( min(st) < 1.e-10 ):
-            print('at least one feature displays (close to) zero variance')
+            raise ValueError('at least one feature displays (close to) zero variance')
 
         if( ncop >= totalsteps ):
-            print('number of gradient steps must be larger than ncop')
+            raise ValueError('number of gradient steps must be larger than ncop')
 
         return lbl
 

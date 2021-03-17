@@ -36,11 +36,10 @@ if (length(unique(plbl)) ~= length(unique(lbl)))
    error('number of prototype labels must equal number of classes');
 end; 
 
-% TODO: MATTHIAS
-%if (sum( unique(plbl')~=unique(lbl)) >0 ) 
-%   warning(['unique(plbl)=   ',num2str(unique(plbl))]);
-%   error('prototype labels inconsistent with data, please rename/reorder'); 
-%end;
+if (sum( unique(plbl')~=unique(lbl)) >0 ) 
+   warning(['unique(plbl)=   ',num2str(unique(plbl))]);
+   error('prototype labels inconsistent with data, please rename/reorder'); 
+end;
 
 for i=1:size(fvec,2);
     st(i)=std(fvec(:,i));  % standard deviation of feature i
