@@ -1,5 +1,3 @@
-from .helper import vdot
-
 from scipy.fft import fft, ifft
 
 import math
@@ -407,16 +405,6 @@ class CGMLVQ:
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
 
         D = np.linalg.norm( omat @ np.array([X-W]).T )**2
-        D = D.real
-
-        return D
-
-
-    def __euclid_cc__( self, X, W, omat ):
-
-        # complex conjugating
-
-        D = np.linalg.norm( vdot(omat, np.array([X-W]).T) )**2
         D = D.real
 
         return D
