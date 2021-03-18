@@ -47,7 +47,6 @@ class CGMLVQ:
         # output:
         # lbl :  data set labels, protentially transposed for consistency
 
-        # TODO: matthias
         lbl = np.array([ lbl ], dtype=int )
         if( lbl.shape[1] > 1 ):   # lbl may be column or row vector
             lbl = lbl.T
@@ -99,7 +98,7 @@ class CGMLVQ:
         prot : prototypes
         plbl : prototype labels
         omat : global matrix omega
-        mu : TODO
+        mu : mu>0 controls penalty for singular relevance matrix
 
         Returns
         -------
@@ -122,6 +121,8 @@ class CGMLVQ:
 
         for iii in range(0, nfv):  # loop through examples
 
+            # TODO: doppelter Code Start
+
             fvc = fvec[iii,:]
             lbc = lbl[iii]
 
@@ -140,6 +141,8 @@ class CGMLVQ:
 
             JJ = correct[JJJ][0]
             KK = incorrect[KKK][0]  # winner indices
+
+            # TODO: doppelter Code Ende
 
             costf = costf + (dJJ-dKK) / (dJJ+dKK) / nfv
 
@@ -162,7 +165,7 @@ class CGMLVQ:
 
         # add penalty term
         if( mu > 0 ):
-            costf = costf - mu / 2 * np.log(np.linalg.det(omat*omat.T)) / nfv  # TODO: Matthias: prüfen
+            costf = costf - mu / 2 * np.log(np.linalg.det(omat @ omat.conj().T)) / nfv
 
         return costf, crout, marg, score
 
@@ -272,7 +275,7 @@ class CGMLVQ:
 
         for i in range( 0, nfv ):  # loop through (sum over) all training examples
 
-            # TODO: doppelter Code
+            # TODO: doppelter Code Start
 
             fvi = fvec[i,:]  # actual example
             lbi = lbl[i]     # actual example
@@ -294,6 +297,8 @@ class CGMLVQ:
             # winner indices
             jwin = correct[JJ][0]
             kwin = incorrect[KK][0]
+
+            # TODO: doppelter Code Ende
 
             # winning prototypes
             wJ = prot[jwin,:]
@@ -320,7 +325,7 @@ class CGMLVQ:
 
         # singularity control: add  derivative of penalty term times mu
         if( mu > 0 ):
-            chm = chm + mu * np.linalg.pinv( omat.T )  # TODO: Matthias: prüfen
+            chm = chm + mu * np.linalg.pinv( omat.conj().T )
 
         # compute normalized gradient updates (length 1)
         # separate nomralization for prototypes and the matrix
@@ -386,12 +391,12 @@ class CGMLVQ:
         ndim = fvec.shape[1]  # dimension ndim of data
 
         mf = np.zeros( (1, ndim), dtype=np.cdouble )  # initialize vectors mf and st
-        st = np.zeros( (1, ndim), dtype=np.cdouble )  # TODO: Matthias: reicht normal?
+        st = np.zeros( (1, ndim) )
 
         for i in range( 0, ndim ):
-            mf[0,i] = np.mean( fvec[:,i] )             # mean of feature i
-            st[0,i] = np.std( fvec[:,i], ddof=1 )      # st.dev. of feature i
-            fvec[:,i] = (fvec[:,i]-mf[0,i]) / st[0,i]  # transformed feature
+            mf[0,i] = np.mean( fvec[:,i] )               # mean of feature i
+            st[0,i] = np.std( fvec[:,i], ddof=1 )        # st.dev. of feature i
+            fvec[:,i] = (fvec[:,i] - mf[0,i]) / st[0,i]  # transformed feature
 
         return fvec, mf, st
 
@@ -412,7 +417,7 @@ class CGMLVQ:
         """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
         """
 
-        Y = fft( X )  # TODO: correct: fft( X, axis=2 )
+        Y = fft( X )
 
         enabled = np.zeros( Y.shape[1] )
 
@@ -474,15 +479,19 @@ class CGMLVQ:
                               [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
 
         # displace randomly from class-conditional means
-        proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt imemr die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
+        proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt immer die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
         # to do: run k-means per class
 
         # (global) matrix initialization, identity or random
         omi = np.identity( ndim )          # works for all values of mode if rndinit == 0
 
+        mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
+                               [0.039399350200113, 0.234555277701321, 0.448715195693642],
+                               [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
+
         if( mode != 3 and rndinit == 1 ):  # does not apply for mode==3 (GLVQ)
-            omi = np.random.rand(ndim) - 0.5
-            omi = omi.T*omi  # square symmetric
+            omi = mat_rando - 0.5     # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand( ndim, ndim )
+            omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
 
         if( mode == 2 ):
@@ -562,8 +571,7 @@ class CGMLVQ:
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
-        # TODO: Matthias
-        plbl = np.array( plbl, dtype=int )
+        plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
         showplots, doztr, mode, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
@@ -595,9 +603,9 @@ class CGMLVQ:
         st = np.ones( (1, ndim) )   # and standard deviations
 
         if( doztr == 1 ):
-            fvec, mf, st = self.__do_zscore__( fvec )  # perform z-score transformation
+            fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
         else:
-            _, mf, st = self.__do_zscore__( fvec )     # evaluate but don't apply
+            _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
 
         # initialize prototypes and omega
         proti, omi = self.__set_initial__( fvec, lbl, plbl, mode, rndinit )
@@ -638,7 +646,7 @@ class CGMLVQ:
             stepsizep[inistep+1] = etap
 
             # compute training set errors and cost function values
-            for icls in range( 1, ncls+1 ):  # TODO: Matthias: bleibt bei 1 wegen labels ?! und +1 bei ncls hinzu und -1 bei icls zwei zeilen drunter dazu
+            for icls in range( 1, ncls+1 ):  # starting with 1 because of the labels
                 # compute class-wise errors (positive margin = error)
                 cw[inistep+1, icls-1] = np.sum(marg[0, np.where(lbl==icls)[0]] > 0) / np.sum(lbl==icls)
 
