@@ -1,22 +1,27 @@
 from cgmlvq import CGMLVQ
 
 import csv
+import os
 
 
 X = []
 y = []
 
-
-csv_file = open( "c:/Users/Matthias Nunn/Desktop/Projekte/de.fhws.fiw.cgmlvq/Python/iris-small.csv" )  # TODO: only "iris-small.csv" not working?!
+csv_file = open( os.path.join(os.getcwd(), "twoclass-simple.csv") )
 
 csv_reader = csv.reader( csv_file, delimiter=',' )
 
 for row in csv_reader:
 
-    vec = [ row[0], row[1], row[2], row[3] ]
+    length = len( row ) - 1
+
+    vec = []
+
+    for i in range( 0, length ):
+        vec.append( row[i] )
 
     X.append( vec )
-    y.append( row[4] )
+    y.append( row[length] )
 
 
 cgmlvq = CGMLVQ( 2, 50 )
