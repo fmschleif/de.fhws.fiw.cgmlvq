@@ -726,7 +726,7 @@ class CGMLVQ:
         # if the data was z transformed then also save the inverse prototypes,
         # actually it is not necessary since the mf and st are returned.
         if( doztr == 1 ):
-            protsInv = self.__do_inversezscore__( prot, mf, st )
+            protsInv = self.__do_inversezscore__( prot.copy(), mf, st )
         else:
             protsInv = prot
 
