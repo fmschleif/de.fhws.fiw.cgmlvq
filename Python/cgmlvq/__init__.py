@@ -469,9 +469,9 @@ class CGMLVQ:
         for ic in range(0, nprots):  # compute class-conditional means
             proti[ic, :] = np.mean( fvec[np.where(lbl == plbl[ic]), :][0], axis=0 )
 
-        mat_rand = np.array([ [0.0710, 0.0537, 0.7551],
-                              [0.2888, 0.5008, 0.4310],
-                              [0.9612, 0.3751, 0.9873] ])
+        mat_rand = np.array([ [0.070967383676578, 0.053702120034403, 0.755097522112434],
+                              [0.288846128145244, 0.500821678395334, 0.431049088660172],
+                              [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
 
         # displace randomly from class-conditional means
         proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt imemr die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
