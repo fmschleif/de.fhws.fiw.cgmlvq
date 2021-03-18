@@ -654,8 +654,8 @@ class CGMLVQ:
         for jstep in range( ncop, totalsteps ):
 
             # calculate mean positions over latest steps
-            protmean = np.squeeze( np.mean(protcop,1) )
-            ommean = np.squeeze( np.mean(omcop,1) )
+            protmean = np.mean( protcop, 1 ).T
+            ommean = np.mean( omcop, 1 ).T
             ommean = ommean / np.sqrt(np.sum(np.sum(np.abs(ommean)**2)))
             # note: normalization does not change cost function value
             #       but is done here for consistency
@@ -675,7 +675,7 @@ class CGMLVQ:
             costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
 
             # by default, step sizes are increased in every step
-            etam = etam * incfac  # (small) increase of step sizes  # TODO: Matthias: etam wird oben evtl. referenziert!
+            etam = etam * incfac  # (small) increase of step sizes
             etap = etap * incfac  # at each learning step to enforce oscillatory behavior
 
             # costfunction values to compare with for Papari procedure
@@ -701,8 +701,8 @@ class CGMLVQ:
                 protcop[:,iicop,:] = protcop[:,iicop+1,:]
                 omcop[:,iicop,:] = omcop[:,iicop+1,:]
 
-            protcop[:,ncop-1,:] = prot
-            omcop[:,ncop-1,:] = om
+            protcop[:,ncop-1,:] = prot.T
+            omcop[:,ncop-1,:] = om.T
 
             # determine training and test set performances
             # here: costfunction without penalty term!
@@ -712,8 +712,8 @@ class CGMLVQ:
             te[jstep+1] = np.sum(marg>0) / nfv
             cf[jstep+1] = costf0
 
-            for icls in range( 1, ncls+1 ):  # TODO: Matthias range von 1 an und ncls erhöht
-                cw[jstep,icls-1] = np.sum(marg[np.where(lbl==icls)[1]] > 0) / np.sum(lbl==icls)
+            for icls in range( 1, ncls+1 ):
+                cw[jstep+1,icls-1] = np.sum(marg[0,np.where(lbl==icls)[0]] > 0) / np.sum(lbl==icls)
 
             stepsizem[jstep+1] = etam
             stepsizep[jstep+1] = etap
@@ -730,7 +730,7 @@ class CGMLVQ:
         else:
             protsInv = prot
 
-        lambdaa = om.T * om   # actual relevance matrix
+        lambdaa = om.conj().T @ om  # actual relevance matrix
 
         # define structures corresponding to the trained system and training curves
         gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
