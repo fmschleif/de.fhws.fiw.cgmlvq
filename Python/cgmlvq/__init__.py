@@ -114,7 +114,7 @@ class CGMLVQ:
         npp = len( plbl )
 
         costf = 0
-        marg = np.zeros( (1,nfv) )
+        marg  = np.zeros( (1,nfv) )
         score = np.zeros( (1,nfv) )
         crout = np.zeros( (1,nfv) )
 
@@ -135,11 +135,8 @@ class CGMLVQ:
             correct   = np.where( np.array([plbl]) == lbc )[1]
             incorrect = np.where( np.array([plbl]) != lbc )[1]
 
-            dJJ = min( distl[correct] )
-            dKK = min( distl[incorrect] )
-
-            JJJ = np.where( distl[correct]   == dJJ )[0]
-            KKK = np.where( distl[incorrect] == dKK )[0]
+            dJJ, JJJ = distl[correct].min(0), distl[correct].argmin(0)
+            dKK, KKK = distl[incorrect].min(0), distl[incorrect].argmin(0)
 
             JJ = correct[JJJ][0]
             KK = incorrect[KKK][0]  # winner indices
@@ -165,7 +162,7 @@ class CGMLVQ:
 
         # add penalty term
         if( mu > 0 ):
-            costf = costf - mu / 2 * np.log(np.linalg.det(omat*omat.T)) / nfv
+            costf = costf - mu / 2 * np.log(np.linalg.det(omat*omat.T)) / nfv  # TODO: Matthias: prüfen
 
         return costf, crout, marg, score
 
@@ -580,12 +577,12 @@ class CGMLVQ:
         rngseed=291024
         #rng(rngseed)
 
-        nfv = fvec.shape[0]           # number of feature vectors in training set
-        ndim = fvec.shape[1]          # dimension of feature vectors
+        nfv = fvec.shape[0]            # number of feature vectors in training set
+        ndim = fvec.shape[1]           # dimension of feature vectors
         ncls = len( np.unique(plbl) )  # number of classes
-        nprots = len( plbl )          # total number of prototypes
+        nprots = len( plbl )           # total number of prototypes
 
-        te = np.zeros( (totalsteps+1, 1) )  # define total error
+        te = np.zeros( (totalsteps+1, 1) )   # define total error
         cf = np.zeros( (totalsteps+1, 1) )   # define cost function
         auc = np.zeros( (totalsteps+1, 1) )  # define AUC(ROC)
 
@@ -595,12 +592,12 @@ class CGMLVQ:
         stepsizep = np.zeros( (totalsteps+1, 1) )  # define stepsize prototypes in the course ...
 
         mf = np.zeros( (1, ndim) )  # initialize feature means
-        st = np.ones( (1, ndim) )  # and standard deviations
+        st = np.ones( (1, ndim) )   # and standard deviations
 
         if( doztr == 1 ):
             fvec, mf, st = self.__do_zscore__( fvec )  # perform z-score transformation
         else:
-            _, mf, st = self.__do_zscore__( fvec )      # evaluate but don't apply
+            _, mf, st = self.__do_zscore__( fvec )     # evaluate but don't apply
 
         # initialize prototypes and omega
         proti, omi = self.__set_initial__( fvec, lbl, plbl, mode, rndinit )
@@ -651,7 +648,7 @@ class CGMLVQ:
 
         # compute cost functions, crisp labels, margins and scores
         # scores with respect to class 1 (negative) or all others (positive)
-        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )  # TODO: Matthias: om conj!!
+        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
 
         # perform totalsteps training steps
         for jstep in range( ncop, totalsteps ):
