@@ -478,8 +478,8 @@ class CGMLVQ:
                               [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
 
         # twoclass
-        mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
-                              [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
+       #mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
+       #                      [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
 
         # displace randomly from class-conditional means
         proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt immer die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
@@ -494,9 +494,9 @@ class CGMLVQ:
                                [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
 
         # twoclass
-        mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
-                               [0.431049088660172, 0.039399350200113, 0.234555277701321],
-                               [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
+       #mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
+       #                       [0.431049088660172, 0.039399350200113, 0.234555277701321],
+       #                       [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
         if( mode != 3 and rndinit == 1 ):  # does not apply for mode==3 (GLVQ)
             omi = mat_rando - 0.5     # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand( ndim, ndim )
@@ -625,8 +625,8 @@ class CGMLVQ:
 
         # copies of prototypes and omegas stored in protcop and omcop
         # for the adaptive step size procedure
-        protcop = np.zeros( (prot.shape[0], ncop, prot.shape[1]), dtype=np.cdouble )  # !! spalte, zeile, dim
-        omcop   = np.zeros( (om.shape[0], ncop, om.shape[1]), dtype=np.cdouble )
+        protcop = np.zeros( (prot.shape[1], ncop, prot.shape[0], ), dtype=np.cdouble )
+        omcop   = np.zeros( (om.shape[1], ncop, om.shape[0]), dtype=np.cdouble )
 
         # calculate initial values for learning curves
         costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
