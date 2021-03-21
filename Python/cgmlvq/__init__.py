@@ -19,20 +19,20 @@ class CGMLVQ:
         X = np.array( X )
         y = np.array( y )
 
-        row_length = X.shape[1]
+        #row_length = X.shape[1]
 
-        number_of_classes = len( np.unique(y) )
+        #number_of_classes = len( np.unique(y) )
 
-        X_frequency = self.__fourier__( X, self.coefficients )
+        #X_frequency = self.__fourier__( X, self.coefficients )
 
-        self.gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.epochs, np.unique(y).T )
+        self.gmlvq_system, training_curves, param_set = self.__single__( X, y, self.epochs, np.unique(y).T )
 
-        backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
+        #backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
 
 
     def predict( self, X ):
 
-        crisp, score, margin, costf = self.__classify_gmlvq__( self.gmlvq_system, X, 1, [] )
+        crisp, score, margin, costf = self.__classify_gmlvq__( self.gmlvq_system, X, 1, np.ones((1,X.shape[0])).T )
 
         return crisp
 
@@ -476,13 +476,13 @@ class CGMLVQ:
             proti[ic, :] = np.mean( fvec[np.where(lbl == plbl[ic]), :][0], axis=0 )
 
         # iris
-        # mat_rand = np.array([ [0.070967383676578, 0.053702120034403, 0.755097522112434],
-        #                       [0.288846128145244, 0.500821678395334, 0.431049088660172],
-        #                       [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
+        mat_rand = np.array([ [0.070967383676578, 0.053702120034403, 0.755097522112434, 0.429080100825389],
+                              [0.288846128145244, 0.500821678395334, 0.431049088660172, 0.039399350200113],
+                              [0.961157062582440, 0.375106575864822, 0.987278326941103, 0.319450632397487] ])
 
         # twoclass
-        mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
-                              [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
+        # mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
+        #                       [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
 
         # displace randomly from class-conditional means
         proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt immer die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
@@ -492,14 +492,14 @@ class CGMLVQ:
         omi = np.identity( ndim )          # works for all values of mode if rndinit == 0
 
         # iris
-        # mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
-        #                        [0.039399350200113, 0.234555277701321, 0.448715195693642],
-        #                        [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
+        mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
+                               [0.039399350200113, 0.234555277701321, 0.448715195693642],
+                               [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
 
         # twoclass
-        mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
-                               [0.431049088660172, 0.039399350200113, 0.234555277701321],
-                               [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
+        # mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
+        #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
+        #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
         if( mode != 3 and rndinit == 1 ):  # does not apply for mode==3 (GLVQ)
             omi = mat_rando - 0.5     # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand( ndim, ndim )

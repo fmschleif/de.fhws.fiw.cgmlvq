@@ -36,4 +36,6 @@ X_test  = X[120:150,:]
 
 cgmlvq = CGMLVQ( 2, 50 )
 cgmlvq.fit( X_train, y_train )
-cgmlvq.predict( X_test )
+predicted = cgmlvq.predict( X_test )
+
+print( predicted )
