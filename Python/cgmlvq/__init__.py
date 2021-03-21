@@ -1,4 +1,5 @@
 from scipy.fft import fft, ifft
+from scipy.linalg import sqrtm
 
 import math
 import numpy as np
@@ -24,14 +25,16 @@ class CGMLVQ:
 
         X_frequency = self.__fourier__( X, self.coefficients )
 
-        gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.epochs, np.unique(y).T )
+        self.gmlvq_system, training_curves, param_set = self.__single__( X_frequency, y, self.epochs, np.unique(y).T )
 
-        backProts = self.__iFourier__( gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
+        backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
 
 
     def predict( self, X ):
 
-        pass
+        crisp, score, margin, costf = self.__classify_gmlvq__( self.gmlvq_system, X, 1, [] )
+
+        return crisp
 
 
     def __check_arguments__( self, plbl, lbl, fvec, ncop, totalsteps ):
@@ -473,13 +476,13 @@ class CGMLVQ:
             proti[ic, :] = np.mean( fvec[np.where(lbl == plbl[ic]), :][0], axis=0 )
 
         # iris
-        mat_rand = np.array([ [0.070967383676578, 0.053702120034403, 0.755097522112434],
-                              [0.288846128145244, 0.500821678395334, 0.431049088660172],
-                              [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
+        # mat_rand = np.array([ [0.070967383676578, 0.053702120034403, 0.755097522112434],
+        #                       [0.288846128145244, 0.500821678395334, 0.431049088660172],
+        #                       [0.961157062582440, 0.375106575864822, 0.987278326941103] ])
 
         # twoclass
-       #mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
-       #                      [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
+        mat_rand = np.array([ [0.070967383676578, 0.961157062582440, 0.500821678395334],
+                              [0.288846128145244, 0.053702120034403, 0.375106575864822] ])
 
         # displace randomly from class-conditional means
         proti = proti * (0.99 + 0.02 * mat_rand)  # TODO: Matlab erzeugt immer die selbe random-Matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand(proti.shape[0], proti.shape[1])
@@ -489,14 +492,14 @@ class CGMLVQ:
         omi = np.identity( ndim )          # works for all values of mode if rndinit == 0
 
         # iris
-        mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
-                               [0.039399350200113, 0.234555277701321, 0.448715195693642],
-                               [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
+        # mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
+        #                        [0.039399350200113, 0.234555277701321, 0.448715195693642],
+        #                        [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
 
         # twoclass
-       #mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
-       #                       [0.431049088660172, 0.039399350200113, 0.234555277701321],
-       #                       [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
+        mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
+                               [0.431049088660172, 0.039399350200113, 0.234555277701321],
+                               [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
         if( mode != 3 and rndinit == 1 ):  # does not apply for mode==3 (GLVQ)
             omi = mat_rando - 0.5     # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die genommen. Originalcode: np.random.rand( ndim, ndim )
@@ -755,3 +758,55 @@ class CGMLVQ:
         param_set = {'totalsteps':totalsteps, 'doztr':doztr, 'mode':mode, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
 
         return gmlvq_system, training_curves, param_set
+
+
+    def __classify_gmlvq__( self, gmlvq_system, fvec, ztr, lbl ):
+
+        """ apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
+
+        Returns
+        -------
+        crisp : crisp labels of Nearest-Prototype-Classifier
+        score : distance based score with respect to class 1
+        margin : GLVQ-type margin with respect to class 1 evaluated in glvqcosts
+        costf : GLVQ costfunction (if ground truth is known)
+        """
+
+        # for classification with unknown ground truth labels, use:
+        # [crisp,score] = classify_gmlvq(gmlvq_system,fvec,ztr)
+
+        # if used for testing with known test labels (lbl) you can use:
+        # [crisp,score,margin,costf] = classify_gmlvq(gmlvq_system,fvec,ztr,lbl)
+
+        prot    = gmlvq_system['protos']         # prototypes
+        lambdaa = gmlvq_system['lambda']         # relevance matrix lambda
+        plbl    = gmlvq_system['plbl']           # prototype labels
+        mf      = gmlvq_system['mean_features']  # mean features from potential z-score
+        st      = gmlvq_system['std_features']   # st.dev. from potential z-score transf.
+        # fvec : set of feature vectors to be classified
+        # ztr = 1 if z-score transformation was done in the training
+
+        omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
+
+        nfv = fvec.shape[0]           # number of feature vectors in training set
+        ndim = fvec.shape[1]          # dimension of feature vectors
+        ncls = len( np.unique(lbl) )  # number of classes
+        nprots = len( plbl )          # total number of prototypes
+
+        # if( nargin<4 or isempty(lbl) ):  # ground truth unknown
+        #     lbl = np.ones( 1, ndim )     # fake labels, meaningless
+        #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
+
+        # if z-transformation was applied in training, apply the same here:
+        if( ztr == 1 ):
+            for i in range( 0, nfv ):
+                fvec[i,:] = (fvec[i,:] - mf) / st
+
+        # call glvqcosts, crout=crisp labels
+        # score between 0= "class 1 certainly" and 1= "any other class"
+        # margin and costf are meaningful only if lbl is ground truth
+
+        mu = 0  # cost function can be computed without penalty term for margins/score
+        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, mu )
+
+        return crisp, score, margin, costf
