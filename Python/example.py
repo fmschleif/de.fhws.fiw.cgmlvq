@@ -34,7 +34,7 @@ y_train = y[0:120]
 X_test  = X[120:150,:]
 
 
-cgmlvq = CGMLVQ( 2, 50 )
+cgmlvq = CGMLVQ( 2, 50, False )
 cgmlvq.fit( X_train, y_train )
 predicted = cgmlvq.predict( X_test )
 
