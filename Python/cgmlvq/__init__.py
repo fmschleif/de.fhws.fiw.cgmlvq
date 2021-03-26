@@ -8,6 +8,7 @@ import numpy as np
 class CGMLVQ:
 
 
+    doztr = 1
     mode = 1
 
 
@@ -537,12 +538,10 @@ class CGMLVQ:
 
         # GMLVQ parameters, explained below
         showplots = 1
-        doztr     = 1
         rndinit   = 0
         mu        = 0
 
         # showplots (0 or 1): plot learning curves etc? recommended: 1
-        # doztr (0 or 1): perform z-score transformation based on training set
         # rndinit
         # 0 for initialization of relevances as identity matrix
         # 1 for randomized initialization of relevance matrix
@@ -579,19 +578,19 @@ class CGMLVQ:
         if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
-        if doztr == 0:
+        if self.doztr == 0:
             print('no z-score transformation, you may have to adjust step sizes')
             if self.mode < 3:
                 print('rescale relevances for proper interpretation')
 
-        return showplots, doztr, rndinit, etam, etap, mu, decfac, incfac, ncop
+        return showplots, rndinit, etam, etap, mu, decfac, incfac, ncop
 
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
-        showplots, doztr, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        showplots, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
@@ -620,7 +619,7 @@ class CGMLVQ:
         mf = np.zeros( (1, ndim) )  # initialize feature means
         st = np.ones( (1, ndim) )   # and standard deviations
 
-        if doztr == 1:
+        if self.doztr == 1:
             fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
         else:
             _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
@@ -751,7 +750,7 @@ class CGMLVQ:
 
         # if the data was z transformed then also save the inverse prototypes,
         # actually it is not necessary since the mf and st are returned.
-        if doztr == 1:
+        if self.doztr == 1:
             protsInv = self.__do_inversezscore__( prot.copy(), mf, st )
         else:
             protsInv = prot
@@ -761,7 +760,7 @@ class CGMLVQ:
         # define structures corresponding to the trained system and training curves
         gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
         training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
-        param_set = {'totalsteps':totalsteps, 'doztr':doztr, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+        param_set = {'totalsteps':totalsteps, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
 
         return gmlvq_system, training_curves, param_set
 
