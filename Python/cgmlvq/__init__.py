@@ -48,6 +48,41 @@ class CGMLVQ:
         return crisp
 
 
+    def set_params( self, **params ):
+
+        """ Set the parameters of this estimator.
+
+        Parameters
+        ----------
+        **params : dict
+            Estimator parameters.
+        """
+
+        if 'doztr' in params:
+            if params['doztr'] == 0 or params['doztr'] == 1:
+                self.doztr = params['doztr']
+            else:
+                raise ValueError( 'Invalid parameter doztr. Check the list of available parameters!' )
+
+        if 'mode' in params:
+            if params['mode'] == 1 or params['mode'] == 2 or params['mode'] == 3:
+                self.mode = params['mode']
+            else:
+                raise ValueError( 'Invalid parameter mode. Check the list of available parameters!' )
+
+        if 'mu' in params:
+            if params['mu'] >= 0:
+                self.mu = params['mu']
+            else:
+                raise ValueError( 'Invalid parameter mu. Check the list of available parameters!' )
+
+        if 'rndinit' in params:
+            if params['rndinit'] == 0 or params['rndinit'] == 1:
+                self.rndinit = params['rndinit']
+            else:
+                raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
+
+
     def __check_arguments__( self, plbl, lbl, fvec, ncop, totalsteps ):
 
         # check consistency of some arguments and input parameters
