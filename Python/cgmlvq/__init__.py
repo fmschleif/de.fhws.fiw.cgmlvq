@@ -37,10 +37,10 @@ class CGMLVQ:
     mode : int, default=1
         Control LVQ version
 
-        - 0 = matrix without null space correction
-        - 1 = matrix with null-space correction
-        - 2 = diagonal matrix (GRLVQ) only, sensitive to step sizes
-        - 3 = GLVQ with Euclidean distance (relevance matrix proportional to identity), normalized identity matrix
+        - 0 = GMLVQ: matrix without null space correction
+        - 1 = GMLVQ: matrix with null-space correction
+        - 2 = GRLVQ: diagonal matrix only, sensitive to step sizes
+        - 3 = GLVQ: relevance matrix proportional to identity (with Euclidean distance), "normalized identity matrix"
 
     Examples
     --------
@@ -133,16 +133,19 @@ class CGMLVQ:
 
     def __check_arguments__( self, plbl, lbl, fvec, ncop ):
 
-        # check consistency of some arguments and input parameters
+        """ Check consistency of some arguments and input parameters.
 
-        # plbl:  prototype labels
-        # lbl :  data set labels
-        # fvec:  feature vectors in data set
-        # ncop:  number of copies in step size control procedure
-        # totalsteps: total number of batch gradient update steps
+        Parameters
+        ----------
+        plbl : prototype labels
+        lbl : data set labels
+        fvec : feature vectors in data set
+        ncop : number of copies in step size control procedure
 
-        # output:
-        # lbl :  data set labels, protentially transposed for consistency
+        Returns
+        -------
+        lbl : data set labels, protentially transposed for consistency
+        """
 
         lbl = np.array([ lbl ], dtype=int )
         if lbl.shape[1] > 1:   # if lbl is row vector
@@ -175,7 +178,7 @@ class CGMLVQ:
 
     def __compute_costs__( self, fvec, lbl, prot, plbl, omat, mu ):
 
-        """ Calculates gmlvq cost function, labels and margins for a set of labelled feature vectors, given a particular lvq system
+        """ Calculates gmlvq cost function, labels and margins for a set of labelled feature vectors, given a particular lvq system.
 
         Parameters
         ----------
@@ -545,9 +548,6 @@ class CGMLVQ:
         fvec : feature vectors
         lbl : data labels
         plbl : prototype labels
-        mode : 0,1 for full matrix (GMLVQ)
-               2 for diagonal matrix (GRLVQ)
-               3 for prop. to identity (GLVQ)
         """
 
         ndim = fvec.shape[1]  # dimension of feature vectors
