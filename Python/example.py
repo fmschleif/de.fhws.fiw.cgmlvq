@@ -1,7 +1,7 @@
 from cgmlvq import CGMLVQ
+from sklearn.metrics import confusion_matrix
 
 import csv
-import numpy as np
 import os
 
 
@@ -25,17 +25,16 @@ for row in csv_reader:
     y.append( row[length] )
 
 
-X = np.array( X, dtype=float )
-y = np.array( y, dtype=float )
-
 X_train = X[0:120,:]
 y_train = y[0:120]
 
-X_test  = X[120:150,:]
+X_test = X[120:150,:]
+y_test = y[120:150]
 
 
-cgmlvq = CGMLVQ( 2, 50, False )
-cgmlvq.fit( X_train, y_train )
-predicted = cgmlvq.predict( X_test )
+cgmlvq = CGMLVQ()
+cgmlvq.fit( X, y )
+predicted = cgmlvq.predict( X )
 
 print( predicted )
+print( confusion_matrix(y_test, predicted) )
