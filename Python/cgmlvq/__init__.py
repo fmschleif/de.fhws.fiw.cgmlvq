@@ -97,33 +97,24 @@ class CGMLVQ:
         # lbl :  data set labels, protentially transposed for consistency
 
         lbl = np.array([ lbl ], dtype=int )
-        if lbl.shape[1] > 1:   # lbl may be column or row vector
-            lbl = lbl.T
-            print('vector lbl has been transposed')
+        if lbl.shape[1] > 1:   # if lbl is row vector
+            lbl = lbl.T        # transpose to column vector
 
         if fvec.shape[0] != len(lbl):
             raise ValueError('number of training labels differs from number of samples')
 
         if min(lbl) != 1 or max(lbl) != len(np.unique(lbl)):
-            print('unique(lbl)=  ' + str(np.unique(lbl)))
             raise ValueError('data labels should be: 1,2,3,...,nclasses')
 
-        if len(np.unique(plbl)) > 2:
-            print('multi-class problem, ROC analysis is for class 1 (neg.) vs. all others (pos.)')
-
         if len(np.unique(plbl)) != len(np.unique(lbl)):
-            print('unique(plbl)=   ' + str(np.unique(plbl)))
             raise ValueError('number of prototype labels must equal number of classes')
 
         if sum(np.unique(plbl.T) != np.unique(lbl)) > 0:
-            print('unique(plbl)=   ' + str(np.unique(plbl)))
             raise ValueError('prototype labels inconsistent with data, please rename/reorder')
 
         st = np.zeros( fvec.shape[1] )
         for i in range(0, fvec.shape[1]):
             st[i] = np.std( fvec[:,i], ddof=1 )  # standard deviation of feature i
-
-        print('minimum standard deviation of features: ' + str(min(st)))
 
         if min(st) < 1.e-10:
             raise ValueError('at least one feature displays (close to) zero variance')
@@ -576,18 +567,12 @@ class CGMLVQ:
         if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
             etam = 2  # suggestion: 2
             etap = 1  # suggestion: 1
-            if self.mode == 0:
-                print('matrix relevances without null-space correction')
-            if self.mode == 1:
-                print('matrix relevances with null-space correction')
 
         elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
-            print('diagonal relevances, not encouraged, sensitive to step sizes')
             etam = 0.2  # initital step size for diagonal matrix updates
             etap = 0.1  # initital step size for prototype update
 
         elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
-            print('GLVQ without relevances')
             etam = 0
             etap = 1
 
@@ -598,10 +583,8 @@ class CGMLVQ:
         if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
-        if self.doztr == 0:
-            print('no z-score transformation, you may have to adjust step sizes')
-            if self.mode < 3:
-                print('rescale relevances for proper interpretation')
+        if self.doztr == 0 and self.mode < 3:
+            print('rescale relevances for proper interpretation')
 
         return etam, etap, decfac, incfac, ncop
 
