@@ -10,6 +10,7 @@ class CGMLVQ:
 
     doztr = 1
     mode = 1
+    mu = 0
     rndinit = 0
 
 
@@ -247,7 +248,7 @@ class CGMLVQ:
         return tpr, fpr, auroc, thresh
 
 
-    def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam, mu ):
+    def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam ):
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
@@ -260,7 +261,6 @@ class CGMLVQ:
         plbl : prototype labels
         omegai : global matrix before the step
         etap,etam : prototype/matrix learning rate
-        mu : mu>0 controls penalty for singular relevance matrix
 
         Returns
         -------
@@ -334,8 +334,8 @@ class CGMLVQ:
             chm = chm - (f1 + f2)                     # matrix summed update
 
         # singularity control: add  derivative of penalty term times mu
-        if mu > 0:
-            chm = chm + mu * np.linalg.pinv( omat.conj().T )
+        if self.mu > 0:
+            chm = chm + self.mu * np.linalg.pinv( omat.conj().T )
 
         # compute normalized gradient updates (length 1)
         # separate nomralization for prototypes and the matrix
@@ -539,14 +539,8 @@ class CGMLVQ:
 
         # GMLVQ parameters, explained below
         showplots = 1
-        mu        = 0
 
         # showplots (0 or 1): plot learning curves etc? recommended: 1
-        # mu
-        # control parameter of penalty term for singularity of Lambda
-        # mu=0: unmodified GMLVQ
-        # mu>0: prevents singular Lambda
-        # mu very large: Lambda proportional to Identity (Euclidean)
 
 
         # parameters of stepsize adaptation
@@ -580,14 +574,14 @@ class CGMLVQ:
             if self.mode < 3:
                 print('rescale relevances for proper interpretation')
 
-        return showplots, etam, etap, mu, decfac, incfac, ncop
+        return showplots, etam, etap, decfac, incfac, ncop
 
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
-        showplots, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        showplots, etam0, etap0, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
@@ -634,7 +628,7 @@ class CGMLVQ:
         omcop   = np.zeros( (om.shape[1], ncop, om.shape[0]), dtype=np.cdouble )
 
         # calculate initial values for learning curves
-        costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+        costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
         te[0] = np.sum(marg>0) / nfv
         cf[0] = costf
         stepsizem[0] = etam
@@ -648,12 +642,12 @@ class CGMLVQ:
         for inistep in range( 0, ncop ):
 
             # actual batch gradient step
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu )
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam )
             protcop[:,inistep,:] = prot.T
             omcop[:,inistep,:] = om.T
 
             # determine and save training set performances
-            costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+            costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
             te[inistep+1] = np.sum(marg>0) / nfv
             cf[inistep+1] = costf
             stepsizem[inistep+1] = etam
@@ -670,7 +664,7 @@ class CGMLVQ:
 
         # compute cost functions, crisp labels, margins and scores
         # scores with respect to class 1 (negative) or all others (positive)
-        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
         # perform totalsteps training steps
         for jstep in range( ncop, totalsteps ):
@@ -683,8 +677,8 @@ class CGMLVQ:
             #       but is done here for consistency
 
             # compute cost functions for mean prototypes, mean matrix and both
-            costmp, _, _, score = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0  )
-            costmm, _, _, score = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, mu )
+            costmp, _, _, score = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0       )
+            costmm, _, _, score = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, self.mu )
             # [costm, ~,~,score ] = compute_costs(fvec,lbl,protmean,plbl,ommean,mu);
 
             # remember old positions for Papari procedure
@@ -692,9 +686,9 @@ class CGMLVQ:
             protbefore = prot.copy()
 
             # perform next step and compute costs etc.
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu )
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, self.mu )
 
-            costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
+            costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
             # by default, step sizes are increased in every step
             etam = etam * incfac  # (small) increase of step sizes
@@ -702,8 +696,8 @@ class CGMLVQ:
 
             # costfunction values to compare with for Papari procedure
             # evaluated w.r.t. changing only matrix or prototype
-            costfp, _, _, score = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0  )
-            costfm, _, _, score = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       mu )
+            costfp, _, _, score = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0       )
+            costfm, _, _, score = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       self.mu )
 
             # heuristic extension of Papari procedure
             # treats matrix and prototype step sizes separately
@@ -757,7 +751,7 @@ class CGMLVQ:
         # define structures corresponding to the trained system and training curves
         gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
         training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
-        param_set = {'totalsteps':totalsteps, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+        param_set = {'totalsteps':totalsteps, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
 
         return gmlvq_system, training_curves, param_set
 
