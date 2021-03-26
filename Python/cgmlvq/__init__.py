@@ -67,6 +67,14 @@ class CGMLVQ:
 
     def fit( self, X, y ):
 
+        """ Fit the classifier from the training dataset.
+
+        Parameters
+        ----------
+        X : Training data
+        y : Target values.
+        """
+
         X = np.array( X )
         y = np.array( y )
 
@@ -83,6 +91,17 @@ class CGMLVQ:
 
 
     def predict( self, X ):
+
+        """ Predict the class labels for the provided data.
+
+        Parameters
+        ----------
+        X : Test data.
+
+        Returns
+        -------
+        y : Class labels for each data sample.
+        """
 
         if self.coefficients > 0:
             X = self.__fourier__( X )
