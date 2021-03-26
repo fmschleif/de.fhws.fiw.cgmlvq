@@ -211,8 +211,8 @@ class CGMLVQ:
         len( binlbl )
 
         tu = np.unique(target, axis=1)  # define binary target values
-        t1 = tu[0][0]           # target value t1 representing "negative" class
-        t2 = tu[0][1]           # target value t2 representing "positive" class
+        t1 = tu[0][0]  # target value t1 representing "negative" class
+        t2 = tu[0][1]  # target value t2 representing "positive" class
 
         npos = np.sum(target == t2)  # number of positive samples
         nneg = np.sum(target == t1)  # number of negative samples
@@ -228,7 +228,7 @@ class CGMLVQ:
         # so value 0.5 is in the list
 
         fpr = np.zeros( (1, nthresh+1) )  # false positive rates
-        tpr = np.zeros( (1, nthresh+1) )                       # true positive rates
+        tpr = np.zeros( (1, nthresh+1) )  # true positive rates
         tpr[0][0] = 1  # only positives, so tpr=fpr=1
         fpr[0][0] = 1  # only positives, so tpr=fpr=1
 
@@ -278,7 +278,7 @@ class CGMLVQ:
         lambdaa = omat.conj().T @ omat
 
         # omat=sqrtm(lambdaa);
-        prot = proti              # prototypes before step
+        prot = proti  # prototypes before step
 
         chp = 0 * prot
         chm = 0 * omat  # initialize change of prot,omega
@@ -537,12 +537,6 @@ class CGMLVQ:
         nfv = fvec.shape[0]
         ndim = fvec.shape[1]
 
-        # GMLVQ parameters, explained below
-        showplots = 1
-
-        # showplots (0 or 1): plot learning curves etc? recommended: 1
-
-
         # parameters of stepsize adaptation
         if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
             etam = 2  # suggestion: 2
@@ -554,17 +548,17 @@ class CGMLVQ:
 
         elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
             print('diagonal relevances, not encouraged, sensitive to step sizes')
-            etam   = 0.2  # initital step size for diagonal matrix updates
-            etap   = 0.1  # initital step size for prototype update
+            etam = 0.2  # initital step size for diagonal matrix updates
+            etap = 0.1  # initital step size for prototype update
 
         elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
             print('GLVQ without relevances')
-            etam=0
+            etam = 0
             etap = 1
 
-        decfac = 1.5       # step size factor (decrease) for Papari steps
-        incfac = 1.1       # step size factor (increase) for all steps
-        ncop = 5           # number of waypoints stored and averaged
+        decfac = 1.5  # step size factor (decrease) for Papari steps
+        incfac = 1.1  # step size factor (increase) for all steps
+        ncop = 5      # number of waypoints stored and averaged
 
         if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
@@ -574,14 +568,14 @@ class CGMLVQ:
             if self.mode < 3:
                 print('rescale relevances for proper interpretation')
 
-        return showplots, etam, etap, decfac, incfac, ncop
+        return etam, etap, decfac, incfac, ncop
 
 
     def __run_single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
-        showplots, etam0, etap0, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        etam0, etap0, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
@@ -686,7 +680,7 @@ class CGMLVQ:
             protbefore = prot.copy()
 
             # perform next step and compute costs etc.
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, self.mu )
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam )
 
             costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
@@ -749,9 +743,9 @@ class CGMLVQ:
         lambdaa = om.conj().T @ om  # actual relevance matrix
 
         # define structures corresponding to the trained system and training curves
-        gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
-        training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
-        param_set = {'totalsteps':totalsteps, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+        gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
+        training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
+        param_set = { 'totalsteps': totalsteps, 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
 
         return gmlvq_system, training_curves, param_set
 
@@ -802,7 +796,7 @@ class CGMLVQ:
         # score between 0= "class 1 certainly" and 1= "any other class"
         # margin and costf are meaningful only if lbl is ground truth
 
-        mu = 0  # cost function can be computed without penalty term for margins/score
-        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, mu )
+        # cost function can be computed without penalty term for margins/score
+        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, 0 )
 
         return crisp, score, margin, costf
