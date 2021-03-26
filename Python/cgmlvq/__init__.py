@@ -8,10 +8,10 @@ import numpy as np
 class CGMLVQ:
 
 
-    doztr = 1
+    doztr = True
     mode = 1
     mu = 0
-    rndinit = 0
+    rndinit = False
 
 
     def __init__( self, coefficients, epochs, fft ):
@@ -59,13 +59,13 @@ class CGMLVQ:
         """
 
         if 'doztr' in params:
-            if params['doztr'] == 0 or params['doztr'] == 1:
+            if type( params['doztr'] ) == bool:
                 self.doztr = params['doztr']
             else:
                 raise ValueError( 'Invalid parameter doztr. Check the list of available parameters!' )
 
         if 'mode' in params:
-            if params['mode'] == 1 or params['mode'] == 2 or params['mode'] == 3:
+            if params['mode'] == 0 or params['mode'] == 1 or params['mode'] == 2 or params['mode'] == 3:
                 self.mode = params['mode']
             else:
                 raise ValueError( 'Invalid parameter mode. Check the list of available parameters!' )
@@ -77,7 +77,7 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter mu. Check the list of available parameters!' )
 
         if 'rndinit' in params:
-            if params['rndinit'] == 0 or params['rndinit'] == 1:
+            if type( params['rndinit'] ) == bool:
                 self.rndinit = params['rndinit']
             else:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
@@ -541,7 +541,7 @@ class CGMLVQ:
         #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
         #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
-        if self.mode != 3 and self.rndinit == 1:  # does not apply for mode==3 (GLVQ)
+        if self.mode != 3 and not self.rndinit:  # does not apply for mode==3 (GLVQ)
             omi = np.random.rand( ndim, ndim ) - 0.5  # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die nehmen.
             omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
@@ -583,7 +583,7 @@ class CGMLVQ:
         if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
-        if self.doztr == 0 and self.mode < 3:
+        if self.doztr and self.mode < 3:
             print('rescale relevances for proper interpretation')
 
         return etam, etap, decfac, incfac, ncop
@@ -622,7 +622,7 @@ class CGMLVQ:
         mf = np.zeros( (1, ndim) )  # initialize feature means
         st = np.ones( (1, ndim) )   # and standard deviations
 
-        if self.doztr == 1:
+        if self.doztr:
             fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
         else:
             _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
@@ -753,7 +753,7 @@ class CGMLVQ:
 
         # if the data was z transformed then also save the inverse prototypes,
         # actually it is not necessary since the mf and st are returned.
-        if self.doztr == 1:
+        if self.doztr:
             protsInv = self.__do_inversezscore__( prot.copy(), mf, st )
         else:
             protsInv = prot
