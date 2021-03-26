@@ -20,16 +20,16 @@ class CGMLVQ:
         X = np.array( X )
         y = np.array( y )
 
-        #row_length = X.shape[1]
+        # row_length = X.shape[1]
 
-        #number_of_classes = len( np.unique(y) )
+        # number_of_classes = len( np.unique(y) )
 
         if self.fft:
             X = self.__fourier__( X, self.coefficients )
 
         self.gmlvq_system, training_curves, param_set = self.__single__( X, y, self.epochs, np.unique(y).T )
 
-        #backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
+        # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
 
 
     def predict( self, X ):
@@ -56,27 +56,27 @@ class CGMLVQ:
         # lbl :  data set labels, protentially transposed for consistency
 
         lbl = np.array([ lbl ], dtype=int )
-        if( lbl.shape[1] > 1 ):   # lbl may be column or row vector
+        if lbl.shape[1] > 1:   # lbl may be column or row vector
             lbl = lbl.T
             print('vector lbl has been transposed')
 
         if fvec.shape[0] != len(lbl):
             raise ValueError('number of training labels differs from number of samples')
 
-        if( min(lbl)!=1 or max(lbl)!=len(np.unique(lbl)) ):
+        if min(lbl) != 1 or max(lbl) != len(np.unique(lbl)):
             print('unique(lbl)=  ' + str(np.unique(lbl)))
             raise ValueError('data labels should be: 1,2,3,...,nclasses')
 
-        if( len(np.unique(plbl))>2 ):
+        if len(np.unique(plbl)) > 2:
             print('multi-class problem, ROC analysis is for class 1 (neg.) vs. all others (pos.)')
 
-        if( len(np.unique(plbl)) != len(np.unique(lbl)) ):
+        if len(np.unique(plbl)) != len(np.unique(lbl)):
             print('unique(plbl)=   ' + str(np.unique(plbl)))
             raise ValueError('number of prototype labels must equal number of classes')
 
-        if( sum(np.unique(plbl.T) != np.unique(lbl)) > 0 ):
-           print('unique(plbl)=   ' + str(np.unique(plbl)))
-           raise ValueError('prototype labels inconsistent with data, please rename/reorder')
+        if sum(np.unique(plbl.T) != np.unique(lbl)) > 0:
+            print('unique(plbl)=   ' + str(np.unique(plbl)))
+            raise ValueError('prototype labels inconsistent with data, please rename/reorder')
 
         st = np.zeros( fvec.shape[1] )
         for i in range(0, fvec.shape[1]):
@@ -84,10 +84,10 @@ class CGMLVQ:
 
         print('minimum standard deviation of features: ' + str(min(st)))
 
-        if( min(st) < 1.e-10 ):
+        if min(st) < 1.e-10:
             raise ValueError('at least one feature displays (close to) zero variance')
 
-        if( ncop >= totalsteps ):
+        if ncop >= totalsteps:
             raise ValueError('number of gradient steps must be larger than ncop')
 
         return lbl
@@ -155,7 +155,7 @@ class CGMLVQ:
             marg[0,iii] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
 
             # un-normalized difference of distances
-            if( lbc == 1 ):
+            if lbc == 1:
                 # score(iii)= 1./(1+exp((dKK-dJJ)/2))  # "the larger the better"
                 score[0,iii] = dKK - dJJ
                 # distdiff(iii)=dKK-dJJ
@@ -166,11 +166,11 @@ class CGMLVQ:
                 # distdiff(iii)=dJJ-dKK
                 # score (iii) = 0.5* (1-marg(iii))
 
-            crout[0,iii] = plbl[JJ] * (dJJ<=dKK) + plbl[KK] * (dJJ>dKK)
+            crout[0,iii] = plbl[JJ] * (dJJ <= dKK) + plbl[KK] * (dJJ > dKK)
             # the class label according to nearest prototype
 
         # add penalty term
-        if( mu > 0 ):
+        if mu > 0:
             costf = costf - mu / 2 * np.log(np.linalg.det(omat @ omat.conj().T)) / nfv
 
         return costf, crout, marg, score
@@ -182,8 +182,8 @@ class CGMLVQ:
 
         Parameters
         ----------
-        binllbl : binarized labels 0,1 for two classes (user-defined selection in multi-class problems)
-        score : continuous valued score, e.g. glvq-socre 0....1
+        binlbl : binarized labels 0,1 for two classes (user-defined selection in multi-class problems)
+        score : continuous valued score, e.g. glvq-score 0....1
         nthresh : number of threshold values, default: 2000
         """
 
@@ -214,7 +214,7 @@ class CGMLVQ:
         # for proper "threshold-averaged" ROC (see paper by Fawcett)
         # we use "nthresh" equi-distant thresholds between 0 and 1
 
-        if( len(binlbl) > 1250 ):
+        if len(binlbl) > 1250:
             nthresh = 4 * len(binlbl)
 
         nthresh = 2 * math.floor(nthresh/2)  # make sure nthresh is even
@@ -330,7 +330,7 @@ class CGMLVQ:
             chm = chm - (f1 + f2)                     # matrix summed update
 
         # singularity control: add  derivative of penalty term times mu
-        if( mu > 0 ):
+        if mu > 0:
             chm = chm + mu * np.linalg.pinv( omat.conj().T )
 
         # compute normalized gradient updates (length 1)
@@ -338,7 +338,7 @@ class CGMLVQ:
         # computation of actual changes, diagonal matrix imposed here if nec.
         n2chw = np.sum( chp.conj() * chp ).real
 
-        if( mode == 2 ):                 # if diagonal matrix used only
+        if mode == 2:                 # if diagonal matrix used only
             chm = np.diag(np.diag(chm))  # reduce to diagonal changes
 
         n2chm = np.sum(np.sum(np.absolute(chm)**2))  # total 'length' of matrix update
@@ -351,15 +351,15 @@ class CGMLVQ:
         omat = omat + etam * chm / np.sqrt(n2chm)
 
         # if diagonal matrix only
-        if( mode == 2 ):                     # probably obsolete as chm diagonal
+        if mode == 2:                     # probably obsolete as chm diagonal
             omat = np.diag( np.diag(omat) )  # reduce to diagonal matrix
 
         #  nullspace correction using Moore Penrose pseudo-inverse
-        if( mode == 1 ):
+        if mode == 1:
             xvec = np.concatenate( (fvec, prot) )                            # concat. protos and fvecs
             omat = (omat @ xvec.conj().T) @ np.linalg.pinv( xvec.conj().T )  # corrected omega matrix
 
-        if( mode == 3 ):
+        if mode == 3:
             omat = np.identity( ndim )  # reset to identity regardless of gradients
 
         # normalization of omega, corresponds to Trace(lambda) = 1
@@ -450,7 +450,7 @@ class CGMLVQ:
 
         one = ( y[:, np.where(enabled==1)[1]] ).shape[1]
         two = np.concatenate( (X, np.fliplr(np.conj(X[:,1:None]))), axis=1 ).shape[1]
-        if( one == two ):
+        if one == two:
             y[:, np.where(enabled==1)[1]] = np.concatenate( (X, np.fliplr(np.conj(X[:,1:None]))), axis=1 )
 
         y = ifft(y)
@@ -511,12 +511,12 @@ class CGMLVQ:
         #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
         #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
-        if( mode != 3 and rndinit == 1 ):  # does not apply for mode==3 (GLVQ)
+        if mode != 3 and rndinit == 1:  # does not apply for mode==3 (GLVQ)
             omi = np.random.rand( ndim, ndim ) - 0.5  # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die nehmen.
             omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
 
-        if( mode == 2 ):
+        if mode == 2:
             omi = np.diag(np.diag(omi))  # restrict to diagonal matrix
 
         omi = omi / np.sqrt(sum(sum(abs(omi)**2)))
@@ -558,20 +558,20 @@ class CGMLVQ:
 
 
         # parameters of stepsize adaptation
-        if( mode < 2 ):  # full matrix updates with (0) or w/o (1) null space correction
+        if mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
             etam = 2  # suggestion: 2
             etap = 1  # suggestion: 1
-            if( mode == 0 ):
+            if mode == 0:
                 print('matrix relevances without null-space correction')
-            if (mode==1):
+            if mode == 1:
                 print('matrix relevances with null-space correction')
 
-        elif( mode == 2 ): # diagonal relevances only, DISCOURAGED
+        elif mode == 2:  # diagonal relevances only, DISCOURAGED
             print('diagonal relevances, not encouraged, sensitive to step sizes')
             etam   = 0.2  # initital step size for diagonal matrix updates
             etap   = 0.1  # initital step size for prototype update
 
-        elif( mode == 3 ): # GLVQ, equivalent to Euclidean distance
+        elif mode == 3:  # GLVQ, equivalent to Euclidean distance
             print('GLVQ without relevances')
             etam=0
             etap = 1
@@ -580,12 +580,12 @@ class CGMLVQ:
         incfac = 1.1       # step size factor (increase) for all steps
         ncop = 5           # number of waypoints stored and averaged
 
-        if( nfv <= ndim and mode == 0 ):
+        if nfv <= ndim and mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
-        if( doztr == 0 ):
+        if doztr == 0:
             print('no z-score transformation, you may have to adjust step sizes')
-            if( mode < 3 ):
+            if mode < 3:
                 print('rescale relevances for proper interpretation')
 
         return showplots, doztr, mode, rndinit, etam, etap, mu, decfac, incfac, ncop
@@ -624,7 +624,7 @@ class CGMLVQ:
         mf = np.zeros( (1, ndim) )  # initialize feature means
         st = np.ones( (1, ndim) )   # and standard deviations
 
-        if( doztr == 1 ):
+        if doztr == 1:
             fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
         else:
             _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
@@ -715,12 +715,12 @@ class CGMLVQ:
 
             # heuristic extension of Papari procedure
             # treats matrix and prototype step sizes separately
-            if( costmp <= costfp ):  # decrease prototype step size and jump
+            if costmp <= costfp:  # decrease prototype step size and jump
                 # to mean prototypes
                 etap = etap / decfac
                 prot = protmean
 
-            if( costmm <= costfm ):  # decrease matrix step size and jump
+            if costmm <= costfm:  # decrease matrix step size and jump
                 # to mean matrix
                 etam = etam / decfac
                 om = ommean
@@ -755,7 +755,7 @@ class CGMLVQ:
 
         # if the data was z transformed then also save the inverse prototypes,
         # actually it is not necessary since the mf and st are returned.
-        if( doztr == 1 ):
+        if doztr == 1:
             protsInv = self.__do_inversezscore__( prot.copy(), mf, st )
         else:
             protsInv = prot
@@ -808,7 +808,7 @@ class CGMLVQ:
         #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
 
         # if z-transformation was applied in training, apply the same here:
-        if( ztr == 1 ):
+        if ztr == 1:
             for i in range( 0, nfv ):
                 fvec[i,:] = (fvec[i,:] - mf) / st
 
