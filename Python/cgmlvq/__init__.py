@@ -7,6 +7,54 @@ import numpy as np
 
 class CGMLVQ:
 
+    """ A classifier for complex valued data based on gmlvq.
+
+    Parameters
+    ----------
+    coefficients : int, default=2
+        Number of signal values in the frequency domain.
+
+    epochs : int, default=50
+        Number of batch gradient steps to be performed in each training run.
+
+    fft : bool, default=True
+        If true, do a fft on the feature data.
+
+    Attributes
+    ----------
+    doztr : bool, default=(True/False)
+        If true, do z transformation, otherwise you may have to adjust step sizes.
+
+    rndinit : bool, default=(True/False)
+        If true, initialize the relevance matrix randomly (if applicable), otherwise it is proportional to the identity matrix.
+
+    mu : int, default=0
+        Controls penalty of singular relevance matrix
+
+        - 0 = unmodified GMLVQ algorithm (recommended for initial experiments)
+        - > 0 = non-singular relevance matrix is enforced, mu controls dominance of leading eigenvectors continuously, prevents singular Lambda
+
+    mode : int, default=1
+        Control LVQ version
+
+        - 0 = matrix without null space correction
+        - 1 = matrix with null-space correction
+        - 2 = diagonal matrix (GRLVQ) only, sensitive to step sizes
+        - 3 = GLVQ with Euclidean distance (relevance matrix proportional to identity), normalized identity matrix
+
+    Examples
+    --------
+    >>> X = [[0], [1], [2], [3]]
+    >>> Y = [0, 0, 1, 1]
+    >>> from cgmlvq import CGMLVQ
+    >>> cgmlvq = CGMLVQ()
+    >>> cgmlvq.fit( X, y )
+    >>> print( cgmlvq.predict([[0], [1]]) )
+
+    Notes
+    -----
+    Based on the Matlab implementation from Michiel Straat.
+    """
 
     doztr = True
     mode = 1
