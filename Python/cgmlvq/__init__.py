@@ -10,6 +10,7 @@ class CGMLVQ:
 
     doztr = 1
     mode = 1
+    rndinit = 0
 
 
     def __init__( self, coefficients, epochs, fft ):
@@ -461,7 +462,7 @@ class CGMLVQ:
         return y
 
 
-    def __set_initial__( self, fvec, lbl, plbl, rndinit ):
+    def __set_initial__( self, fvec, lbl, plbl ):
 
         """ Initialization of prototypes close to class conditional means small random displacements to break ties
 
@@ -514,7 +515,7 @@ class CGMLVQ:
         #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
         #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
-        if self.mode != 3 and rndinit == 1:  # does not apply for mode==3 (GLVQ)
+        if self.mode != 3 and self.rndinit == 1:  # does not apply for mode==3 (GLVQ)
             omi = np.random.rand( ndim, ndim ) - 0.5  # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die nehmen.
             omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
@@ -538,13 +539,9 @@ class CGMLVQ:
 
         # GMLVQ parameters, explained below
         showplots = 1
-        rndinit   = 0
         mu        = 0
 
         # showplots (0 or 1): plot learning curves etc? recommended: 1
-        # rndinit
-        # 0 for initialization of relevances as identity matrix
-        # 1 for randomized initialization of relevance matrix
         # mu
         # control parameter of penalty term for singularity of Lambda
         # mu=0: unmodified GMLVQ
@@ -583,14 +580,14 @@ class CGMLVQ:
             if self.mode < 3:
                 print('rescale relevances for proper interpretation')
 
-        return showplots, rndinit, etam, etap, mu, decfac, incfac, ncop
+        return showplots, etam, etap, mu, decfac, incfac, ncop
 
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
-        showplots, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        showplots, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
@@ -625,7 +622,7 @@ class CGMLVQ:
             _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
 
         # initialize prototypes and omega
-        proti, omi = self.__set_initial__( fvec, lbl, plbl, rndinit )
+        proti, omi = self.__set_initial__( fvec, lbl, plbl )
 
         # initial values
         prot = proti
@@ -760,7 +757,7 @@ class CGMLVQ:
         # define structures corresponding to the trained system and training curves
         gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
         training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
-        param_set = {'totalsteps':totalsteps, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+        param_set = {'totalsteps':totalsteps, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
 
         return gmlvq_system, training_curves, param_set
 
