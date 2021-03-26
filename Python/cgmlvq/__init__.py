@@ -14,7 +14,7 @@ class CGMLVQ:
     coefficients : int, default=2
         Number of signal values in the frequency domain.
 
-    epochs : int, default=50
+    totalsteps : int, default=50
         Number of batch gradient steps to be performed in each training run.
 
     fft : bool, default=True
@@ -62,10 +62,10 @@ class CGMLVQ:
     rndinit = False
 
 
-    def __init__( self, coefficients=2, epochs=50, fft=False ):
+    def __init__( self, coefficients=2, totalsteps=50, fft=False ):
 
         self.coefficients = coefficients
-        self.epochs = epochs
+        self.totalsteps = totalsteps
         self.fft = fft
 
 
@@ -81,7 +81,7 @@ class CGMLVQ:
         if self.fft:
             X = self.__fourier__( X )
 
-        self.gmlvq_system, training_curves, param_set = self.__run_single__( X, y, self.epochs, np.unique(y).T )
+        self.gmlvq_system, training_curves, param_set = self.__run_single__( X, y, np.unique(y).T )
 
         # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
 
@@ -131,7 +131,7 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
 
 
-    def __check_arguments__( self, plbl, lbl, fvec, ncop, totalsteps ):
+    def __check_arguments__( self, plbl, lbl, fvec, ncop ):
 
         # check consistency of some arguments and input parameters
 
@@ -167,7 +167,7 @@ class CGMLVQ:
         if min(st) < 1.e-10:
             raise ValueError('at least one feature displays (close to) zero variance')
 
-        if ncop >= totalsteps:
+        if ncop >= self.totalsteps:
             raise ValueError('number of gradient steps must be larger than ncop')
 
         return lbl
@@ -637,7 +637,7 @@ class CGMLVQ:
         return etam, etap, decfac, incfac, ncop
 
 
-    def __run_single__( self, fvec, lbl, totalsteps, plbl ):
+    def __run_single__( self, fvec, lbl, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
@@ -646,7 +646,7 @@ class CGMLVQ:
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
 
-        lbl = self.__check_arguments__( plbl, lbl, fvec, ncop, totalsteps )
+        lbl = self.__check_arguments__( plbl, lbl, fvec, ncop )
 
         # reproducible random numbers
         #rng('default')
@@ -658,14 +658,14 @@ class CGMLVQ:
         ncls = len( np.unique(plbl) )  # number of classes
         nprots = len( plbl )           # total number of prototypes
 
-        te = np.zeros( (totalsteps+1, 1) )   # define total error
-        cf = np.zeros( (totalsteps+1, 1) )   # define cost function
-        auc = np.zeros( (totalsteps+1, 1) )  # define AUC(ROC)
+        te = np.zeros( (self.totalsteps+1, 1) )   # define total error
+        cf = np.zeros( (self.totalsteps+1, 1) )   # define cost function
+        auc = np.zeros( (self.totalsteps+1, 1) )  # define AUC(ROC)
 
-        cw = np.zeros( (totalsteps+1, ncls) )  # define class-wise errors
+        cw = np.zeros( (self.totalsteps+1, ncls) )  # define class-wise errors
 
-        stepsizem = np.zeros( (totalsteps+1, 1) )  # define stepsize matrix in the course of training
-        stepsizep = np.zeros( (totalsteps+1, 1) )  # define stepsize prototypes in the course ...
+        stepsizem = np.zeros( (self.totalsteps+1, 1) )  # define stepsize matrix in the course of training
+        stepsizep = np.zeros( (self.totalsteps+1, 1) )  # define stepsize prototypes in the course ...
 
         mf = np.zeros( (1, ndim) )  # initialize feature means
         st = np.ones( (1, ndim) )   # and standard deviations
@@ -727,7 +727,7 @@ class CGMLVQ:
         _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
         # perform totalsteps training steps
-        for jstep in range( ncop, totalsteps ):
+        for jstep in range( ncop, self.totalsteps ):
 
             # calculate mean positions over latest steps
             protmean = np.mean( protcop, 1 ).T
@@ -811,7 +811,7 @@ class CGMLVQ:
         # define structures corresponding to the trained system and training curves
         gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
         training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
-        param_set = { 'totalsteps': totalsteps, 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
+        param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
 
         return gmlvq_system, training_curves, param_set
 
