@@ -81,9 +81,9 @@ class CGMLVQ:
         if self.fft:
             X = self.__fourier__( X )
 
-        self.gmlvq_system, training_curves, param_set = self.__run_single__( X, y, np.unique(y).T )
+        self.__run_single__( X, y, np.unique(y).T )
 
-        # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
+        # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )
 
 
     def predict( self, X ):
@@ -91,9 +91,9 @@ class CGMLVQ:
         if self.fft:
             X = self.__fourier__( X )
 
-        crisp, score, margin, costf = self.__classify_gmlvq__( self.gmlvq_system, X, 1, np.ones((1,X.shape[0])).T )
+        crisp, score, margin, costf = self.__classify_gmlvq__( X, np.ones((1,X.shape[0])).T )
 
-        return crisp
+        return crisp[0]
 
 
     def set_params( self, **params ):
@@ -808,17 +808,19 @@ class CGMLVQ:
 
         lambdaa = om.conj().T @ om  # actual relevance matrix
 
-        # define structures corresponding to the trained system and training curves
-        gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
-        training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
-        param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
+        self.gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
 
-        return gmlvq_system, training_curves, param_set
+        # training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
+        # param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
 
 
-    def __classify_gmlvq__( self, gmlvq_system, fvec, ztr, lbl ):
+    def __classify_gmlvq__( self, fvec, lbl ):
 
-        """ apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
+        """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
+
+        Parameters
+        ----------
+        fvec : set of feature vectors to be classified
 
         Returns
         -------
@@ -829,18 +831,16 @@ class CGMLVQ:
         """
 
         # for classification with unknown ground truth labels, use:
-        # [crisp,score] = classify_gmlvq(gmlvq_system,fvec,ztr)
+        # crisp, score = classify_gmlvq( fvec )
 
         # if used for testing with known test labels (lbl) you can use:
-        # [crisp,score,margin,costf] = classify_gmlvq(gmlvq_system,fvec,ztr,lbl)
+        # crisp, score, margin, costf = classify_gmlvq( fvec, lbl )
 
-        prot    = gmlvq_system['protos']         # prototypes
-        lambdaa = gmlvq_system['lambda']         # relevance matrix lambda
-        plbl    = gmlvq_system['plbl']           # prototype labels
-        mf      = gmlvq_system['mean_features']  # mean features from potential z-score
-        st      = gmlvq_system['std_features']   # st.dev. from potential z-score transf.
-        # fvec : set of feature vectors to be classified
-        # ztr = 1 if z-score transformation was done in the training
+        prot    = self.gmlvq_system['protos']         # prototypes
+        lambdaa = self.gmlvq_system['lambda']         # relevance matrix lambda
+        plbl    = self.gmlvq_system['plbl']           # prototype labels
+        mf      = self.gmlvq_system['mean_features']  # mean features from potential z-score
+        st      = self.gmlvq_system['std_features']   # st.dev. from potential z-score transf.
 
         omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
 
@@ -854,7 +854,7 @@ class CGMLVQ:
         #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
 
         # if z-transformation was applied in training, apply the same here:
-        if ztr == 1:
+        if self.doztr:
             for i in range( 0, nfv ):
                 fvec[i,:] = (fvec[i,:] - mf) / st
 
