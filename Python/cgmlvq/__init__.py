@@ -33,7 +33,7 @@ class CGMLVQ:
         if self.fft:
             X = self.__fourier__( X, self.coefficients )
 
-        self.gmlvq_system, training_curves, param_set = self.__single__( X, y, self.epochs, np.unique(y).T )
+        self.gmlvq_system, training_curves, param_set = self.__run_single__( X, y, self.epochs, np.unique(y).T )
 
         # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )  # wrapper around inverse Fourier
 
@@ -577,7 +577,7 @@ class CGMLVQ:
         return showplots, etam, etap, decfac, incfac, ncop
 
 
-    def __single__( self, fvec, lbl, totalsteps, plbl ):
+    def __run_single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
