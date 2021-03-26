@@ -14,7 +14,7 @@ class CGMLVQ:
     rndinit = False
 
 
-    def __init__( self, coefficients, epochs, fft ):
+    def __init__( self, coefficients=2, epochs=50, fft=False ):
 
         self.coefficients = coefficients
         self.epochs = epochs
