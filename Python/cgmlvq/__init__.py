@@ -31,7 +31,7 @@ class CGMLVQ:
         # number_of_classes = len( np.unique(y) )
 
         if self.fft:
-            X = self.__fourier__( X, self.coefficients )
+            X = self.__fourier__( X )
 
         self.gmlvq_system, training_curves, param_set = self.__run_single__( X, y, self.epochs, np.unique(y).T )
 
@@ -41,7 +41,7 @@ class CGMLVQ:
     def predict( self, X ):
 
         if self.fft:
-            X = self.__fourier__( X, self.coefficients )
+            X = self.__fourier__( X )
 
         crisp, score, margin, costf = self.__classify_gmlvq__( self.gmlvq_system, X, 1, np.ones((1,X.shape[0])).T )
 
@@ -457,7 +457,7 @@ class CGMLVQ:
         return D
 
 
-    def __fourier__( self, X, r ):  # r = coefficients
+    def __fourier__( self, X ):
 
         """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
         """
@@ -466,7 +466,7 @@ class CGMLVQ:
 
         enabled = np.zeros( Y.shape[1] )
 
-        enabled[0:r+1] = 1
+        enabled[ 0 : self.coefficients+1 ] = 1
 
         Y = Y[:, enabled==1]
 
