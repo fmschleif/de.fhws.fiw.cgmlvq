@@ -8,6 +8,9 @@ import numpy as np
 class CGMLVQ:
 
 
+    mode = 1
+
+
     def __init__( self, coefficients, epochs, fft ):
 
         self.coefficients = coefficients
@@ -242,7 +245,7 @@ class CGMLVQ:
         return tpr, fpr, auroc, thresh
 
 
-    def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam, mu, mode ):
+    def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam, mu ):
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
@@ -256,7 +259,6 @@ class CGMLVQ:
         omegai : global matrix before the step
         etap,etam : prototype/matrix learning rate
         mu : mu>0 controls penalty for singular relevance matrix
-        mode : 0 for full, 1 for matrix with nullspace correction, 2 for diagonal matrix only (GRLVQ), 3 for normalized identity matrix (GLVQ)
 
         Returns
         -------
@@ -338,7 +340,7 @@ class CGMLVQ:
         # computation of actual changes, diagonal matrix imposed here if nec.
         n2chw = np.sum( chp.conj() * chp ).real
 
-        if mode == 2:                 # if diagonal matrix used only
+        if self.mode == 2:                 # if diagonal matrix used only
             chm = np.diag(np.diag(chm))  # reduce to diagonal changes
 
         n2chm = np.sum(np.sum(np.absolute(chm)**2))  # total 'length' of matrix update
@@ -351,15 +353,15 @@ class CGMLVQ:
         omat = omat + etam * chm / np.sqrt(n2chm)
 
         # if diagonal matrix only
-        if mode == 2:                     # probably obsolete as chm diagonal
+        if self.mode == 2:                     # probably obsolete as chm diagonal
             omat = np.diag( np.diag(omat) )  # reduce to diagonal matrix
 
         #  nullspace correction using Moore Penrose pseudo-inverse
-        if mode == 1:
+        if self.mode == 1:
             xvec = np.concatenate( (fvec, prot) )                            # concat. protos and fvecs
             omat = (omat @ xvec.conj().T) @ np.linalg.pinv( xvec.conj().T )  # corrected omega matrix
 
-        if mode == 3:
+        if self.mode == 3:
             omat = np.identity( ndim )  # reset to identity regardless of gradients
 
         # normalization of omega, corresponds to Trace(lambda) = 1
@@ -458,7 +460,7 @@ class CGMLVQ:
         return y
 
 
-    def __set_initial__( self, fvec, lbl, plbl, mode, rndinit ):
+    def __set_initial__( self, fvec, lbl, plbl, rndinit ):
 
         """ Initialization of prototypes close to class conditional means small random displacements to break ties
 
@@ -511,12 +513,12 @@ class CGMLVQ:
         #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
         #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
-        if mode != 3 and rndinit == 1:  # does not apply for mode==3 (GLVQ)
+        if self.mode != 3 and rndinit == 1:  # does not apply for mode==3 (GLVQ)
             omi = np.random.rand( ndim, ndim ) - 0.5  # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die nehmen.
             omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
 
-        if mode == 2:
+        if self.mode == 2:
             omi = np.diag(np.diag(omi))  # restrict to diagonal matrix
 
         omi = omi / np.sqrt(sum(sum(abs(omi)**2)))
@@ -536,17 +538,11 @@ class CGMLVQ:
         # GMLVQ parameters, explained below
         showplots = 1
         doztr     = 1
-        mode      = 1
         rndinit   = 0
         mu        = 0
 
         # showplots (0 or 1): plot learning curves etc? recommended: 1
         # doztr (0 or 1): perform z-score transformation based on training set
-        # mode
-        # 0 for matrix without null-space correction
-        # 1 for matrix with null-space correction
-        # 2 for diagonal matrix (GRLVQ)                         discouraged
-        # 3 for GLVQ with Euclidean distance (equivalent)
         # rndinit
         # 0 for initialization of relevances as identity matrix
         # 1 for randomized initialization of relevance matrix
@@ -558,20 +554,20 @@ class CGMLVQ:
 
 
         # parameters of stepsize adaptation
-        if mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
+        if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
             etam = 2  # suggestion: 2
             etap = 1  # suggestion: 1
-            if mode == 0:
+            if self.mode == 0:
                 print('matrix relevances without null-space correction')
-            if mode == 1:
+            if self.mode == 1:
                 print('matrix relevances with null-space correction')
 
-        elif mode == 2:  # diagonal relevances only, DISCOURAGED
+        elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
             print('diagonal relevances, not encouraged, sensitive to step sizes')
             etam   = 0.2  # initital step size for diagonal matrix updates
             etap   = 0.1  # initital step size for prototype update
 
-        elif mode == 3:  # GLVQ, equivalent to Euclidean distance
+        elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
             print('GLVQ without relevances')
             etam=0
             etap = 1
@@ -580,22 +576,22 @@ class CGMLVQ:
         incfac = 1.1       # step size factor (increase) for all steps
         ncop = 5           # number of waypoints stored and averaged
 
-        if nfv <= ndim and mode == 0:
+        if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
         if doztr == 0:
             print('no z-score transformation, you may have to adjust step sizes')
-            if mode < 3:
+            if self.mode < 3:
                 print('rescale relevances for proper interpretation')
 
-        return showplots, doztr, mode, rndinit, etam, etap, mu, decfac, incfac, ncop
+        return showplots, doztr, rndinit, etam, etap, mu, decfac, incfac, ncop
 
 
     def __single__( self, fvec, lbl, totalsteps, plbl ):
 
         plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
 
-        showplots, doztr, mode, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        showplots, doztr, rndinit, etam0, etap0, mu, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
@@ -630,7 +626,7 @@ class CGMLVQ:
             _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
 
         # initialize prototypes and omega
-        proti, omi = self.__set_initial__( fvec, lbl, plbl, mode, rndinit )
+        proti, omi = self.__set_initial__( fvec, lbl, plbl, rndinit )
 
         # initial values
         prot = proti
@@ -656,7 +652,7 @@ class CGMLVQ:
         for inistep in range( 0, ncop ):
 
             # actual batch gradient step
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu )
             protcop[:,inistep,:] = prot.T
             omcop[:,inistep,:] = om.T
 
@@ -700,7 +696,7 @@ class CGMLVQ:
             protbefore = prot.copy()
 
             # perform next step and compute costs etc.
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu, mode )
+            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam, mu )
 
             costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, mu )
 
@@ -765,7 +761,7 @@ class CGMLVQ:
         # define structures corresponding to the trained system and training curves
         gmlvq_system = {'protos':prot, 'protosInv':protsInv, 'lambda':lambdaa, 'plbl':plbl, 'mean_features':mf, 'std_features':st}
         training_curves = {'costs':cf, 'train_error':te, 'class_wise':cw, 'auroc':auc}
-        param_set = {'totalsteps':totalsteps, 'doztr':doztr, 'mode':mode, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
+        param_set = {'totalsteps':totalsteps, 'doztr':doztr, 'rndinit':rndinit, 'etam0':etam0, 'etap0':etap0, 'etamfin':etam, 'etapfin':etap, 'mu':mu, 'decfac':decfac, 'infac':incfac, 'ncop':ncop, 'rngseed':rngseed}
 
         return gmlvq_system, training_curves, param_set
 
