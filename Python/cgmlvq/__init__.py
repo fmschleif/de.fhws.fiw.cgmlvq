@@ -11,14 +11,11 @@ class CGMLVQ:
 
     Parameters
     ----------
-    coefficients : int, default=2
-        Number of signal values in the frequency domain.
+    coefficients : int, default=0
+        Number of signal values in the frequency domain. If coefficients is 0, no fft is executed.
 
     totalsteps : int, default=50
         Number of batch gradient steps to be performed in each training run.
-
-    fft : bool, default=True
-        If true, do a fft on the feature data.
 
     Attributes
     ----------
@@ -62,11 +59,10 @@ class CGMLVQ:
     rndinit = False
 
 
-    def __init__( self, coefficients=2, totalsteps=50, fft=False ):
+    def __init__( self, coefficients=0, totalsteps=50 ):
 
         self.coefficients = coefficients
         self.totalsteps = totalsteps
-        self.fft = fft
 
 
     def fit( self, X, y ):
@@ -78,7 +74,7 @@ class CGMLVQ:
 
         # number_of_classes = len( np.unique(y) )
 
-        if self.fft:
+        if self.coefficients > 0:
             X = self.__fourier__( X )
 
         self.__run_single__( X, y, np.unique(y).T )
@@ -88,7 +84,7 @@ class CGMLVQ:
 
     def predict( self, X ):
 
-        if self.fft:
+        if self.coefficients > 0:
             X = self.__fourier__( X )
 
         crisp, score, margin, costf = self.__classify_gmlvq__( X, np.ones((1,X.shape[0])).T )
