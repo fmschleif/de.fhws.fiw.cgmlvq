@@ -592,19 +592,25 @@ class CGMLVQ:
         # to do: run k-means per class
 
         # (global) matrix initialization, identity or random
-        omi = np.identity( ndim )          # works for all values of mode if rndinit == 0
+        omi = np.identity( ndim )  # works for all values of mode if rndinit == 0
 
-        # iris
+        # iris (fft)
         # mat_rando = np.array([ [0.429080100825389, 0.364377535171307, 0.133265461196363],
         #                        [0.039399350200113, 0.234555277701321, 0.448715195693642],
         #                        [0.319450632397487, 0.051394107705381, 0.510434851034890] ])
+
+        # iris
+        # mat_rando = np.array([ [0.364377535171307, 0.448715195693642, 0.253041795449876, 0.435827466129530],
+        #                        [0.234555277701321, 0.510434851034890, 0.952413156249137, 0.708426072606759],
+        #                        [0.051394107705381, 0.206870833107905, 0.497528942589068, 0.113729109324113],
+        #                        [0.133265461196363, 0.783660120823662, 0.918757101621908, 0.628307311332462] ])
 
         # twoclass
         # mat_rando = np.array([ [0.755097522112434, 0.429080100825389, 0.364377535171307],
         #                        [0.431049088660172, 0.039399350200113, 0.234555277701321],
         #                        [0.987278326941103, 0.319450632397487, 0.051394107705381] ])
 
-        if self.mode != 3 and not self.rndinit:  # does not apply for mode==3 (GLVQ)
+        if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
             omi = np.random.rand( ndim, ndim ) - 0.5  # TODO: Matlab erzeugt immer die selbe random-matrix in jedem Durchlauf, daher für Testzwecke die nehmen.
             omi = omi.conj().T @ omi  # square symmetric
             #  matrix of uniform random numbers
