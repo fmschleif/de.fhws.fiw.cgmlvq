@@ -1,3 +1,7 @@
+""" Complex Generalized Matrix Learning Vector Quantization """
+
+# Author: Matthias Nunn
+
 from scipy.fft import fft, ifft
 from scipy.linalg import sqrtm
 
