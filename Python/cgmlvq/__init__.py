@@ -86,7 +86,7 @@ class CGMLVQ:
         if self.coefficients > 0:
             X = self.__fourier__( X )
 
-        self.__run_single__( X, y, np.unique(y).T )
+        self.__run_single__( X, y )
 
 
     def predict( self, X ):
@@ -147,13 +147,12 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
 
 
-    def __check_arguments__( self, plbl, lbl, fvec, ncop ):
+    def __check_arguments__( self, lbl, fvec, ncop ):
 
         """ Check consistency of some arguments and input parameters.
 
         Parameters
         ----------
-        plbl : prototype labels
         lbl : data set labels
         fvec : feature vectors in data set
         ncop : number of copies in step size control procedure
@@ -161,11 +160,14 @@ class CGMLVQ:
         Returns
         -------
         lbl : data set labels, protentially transposed for consistency
+        plbl : prototype labels
         """
 
         lbl = np.array([ lbl ], dtype=int )
         if lbl.shape[1] > 1:  # if lbl is row vector
             lbl = lbl.T       # transpose to column vector
+
+        plbl = np.unique( lbl )
 
         if fvec.shape[0] != len(lbl):
             raise ValueError('number of training labels differs from number of samples')
@@ -189,7 +191,7 @@ class CGMLVQ:
         if ncop >= self.totalsteps:
             raise ValueError('number of gradient steps must be larger than ncop')
 
-        return lbl
+        return lbl, plbl
 
 
     def __classify_gmlvq__( self, fvec, lbl=0 ):
@@ -638,16 +640,14 @@ class CGMLVQ:
         return etam, etap, decfac, incfac, ncop
 
 
-    def __run_single__( self, fvec, lbl, plbl ):
-
-        plbl = np.array( plbl, dtype=int )  # TODO: evtl in check_arguments
+    def __run_single__( self, fvec, lbl ):
 
         etam0, etap0, decfac, incfac, ncop = self.__set_parameters__( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
 
-        lbl = self.__check_arguments__( plbl, lbl, fvec, ncop )
+        lbl, plbl = self.__check_arguments__( lbl, fvec, ncop )
 
         nfv = fvec.shape[0]            # number of feature vectors in training set
         ncls = len( np.unique(plbl) )  # number of classes
