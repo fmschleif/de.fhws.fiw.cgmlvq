@@ -39,12 +39,13 @@ class CGMLVQ:
         - 2 = GRLVQ: diagonal matrix only, sensitive to step sizes
         - 3 = GLVQ: relevance matrix proportional to identity (with Euclidean distance), "normalized identity matrix"
 
-    Examples
-    --------
+    Example
+    -------
     >>> X = [[0], [1], [2], [3]]
     >>> Y = [0, 0, 1, 1]
     >>> from cgmlvq import CGMLVQ
     >>> cgmlvq = CGMLVQ()
+    >>> cgmlvq.set_params( mode=0 )
     >>> cgmlvq.fit( X, y )
     >>> print( cgmlvq.predict([[0], [1]]) )
 
@@ -122,7 +123,7 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter doztr. Check the list of available parameters!' )
 
         if 'mode' in params:
-            if params['mode'] == 0 or params['mode'] == 1 or params['mode'] == 2 or params['mode'] == 3:
+            if params['mode'] >= 0 and params['mode'] <= 3:
                 self.mode = params['mode']
             else:
                 raise ValueError( 'Invalid parameter mode. Check the list of available parameters!' )
