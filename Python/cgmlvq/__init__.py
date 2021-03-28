@@ -216,9 +216,6 @@ class CGMLVQ:
         omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
 
         nfv = fvec.shape[0]           # number of feature vectors in training set
-        ndim = fvec.shape[1]          # dimension of feature vectors
-        ncls = len( np.unique(lbl) )  # number of classes
-        nprots = len( plbl )          # total number of prototypes
 
         if lbl == 0:                     # ground truth unknown
             lbl = np.ones( (1, nfv) ).T  # fake labels, meaningless
@@ -260,7 +257,6 @@ class CGMLVQ:
         """
 
         nfv = fvec.shape[0]
-        ndim = fvec.shape[1]  # and dim. of feature vectors
         npp = len( plbl )
 
         costf = 0
@@ -299,15 +295,9 @@ class CGMLVQ:
 
             # un-normalized difference of distances
             if lbi == 1:
-                # score(iii)= 1./(1+exp((dKK-dJJ)/2))  # "the larger the better"
                 score[0, i] = dK - dJ
-                # distdiff(iii)=dKK-dJJ
-                # score (iii) = 0.5* (1+marg(iii))
             else:
-                # score(iii)= 1./(1+exp((dJJ-dKK)/2))  # "the larger the worse"
                 score[0, i] = dJ - dK
-                # distdiff(iii)=dJJ-dKK
-                # score (iii) = 0.5* (1-marg(iii))
 
             crout[0, i] = plbl[jwin] * (dJ <= dK) + plbl[kwin] * (dJ > dK)
             # the class label according to nearest prototype
@@ -343,16 +333,11 @@ class CGMLVQ:
         score = 1 / (1 + np.exp(score/2))
 
         binlbl = binlbl.astype(int)  # True/False to 0,1
-        target = binlbl.T  # should be 0,1
-        output = score
-        len( binlbl )
+        target = binlbl.T            # should be 0,1
 
         tu = np.unique(target, axis=1)  # define binary target values
         t1 = tu[0][0]  # target value t1 representing "negative" class
         t2 = tu[0][1]  # target value t2 representing "positive" class
-
-        npos = np.sum(target == t2)  # number of positive samples
-        nneg = np.sum(target == t1)  # number of negative samples
 
         # for proper "threshold-averaged" ROC (see paper by Fawcett)
         # we use "nthresh" equi-distant thresholds between 0 and 1
@@ -369,7 +354,7 @@ class CGMLVQ:
         tpr[0][0] = 1  # only positives, so tpr=fpr=1
         fpr[0][0] = 1  # only positives, so tpr=fpr=1
 
-        for i in range(0, nthresh-1):
+        for i in range( 0, nthresh-1 ):
             # count true positves, false positives etc.
             tp = np.sum( target[score >  thresh[i+1]] == t2 )
             fp = np.sum( target[score >  thresh[i+1]] == t1 )
@@ -405,16 +390,14 @@ class CGMLVQ:
         omat : omega matrix after update
         """
 
-        ndim = fvec.shape[1]          # dimension of feature vectors
-        nfv = len(lbl)                # number of feature vectors (training samples)
-        cls = np.unique(lbl, axis=0)  # set of class labels
-        npt = proti.shape[0]          # number of prototypes
+        ndim = fvec.shape[1]  # dimension of feature vectors
+        nfv = len(lbl)        # number of feature vectors (training samples)
+        npt = proti.shape[0]  # number of prototypes
 
         # omega and lambdaa before step
         omat = omegai
         lambdaa = omat.conj().T @ omat
 
-        # omat=sqrtm(lambdaa);
         prot = proti  # prototypes before step
 
         chp = 0 * prot
@@ -660,9 +643,7 @@ class CGMLVQ:
         lbl = self.__check_arguments__( plbl, lbl, fvec, ncop )
 
         nfv = fvec.shape[0]            # number of feature vectors in training set
-        ndim = fvec.shape[1]           # dimension of feature vectors
         ncls = len( np.unique(plbl) )  # number of classes
-        nprots = len( plbl )           # total number of prototypes
 
         te = np.zeros( (self.totalsteps+1, 1) )   # define total error
         cf = np.zeros( (self.totalsteps+1, 1) )   # define cost function
@@ -672,9 +653,6 @@ class CGMLVQ:
 
         stepsizem = np.zeros( (self.totalsteps+1, 1) )  # define stepsize matrix in the course of training
         stepsizep = np.zeros( (self.totalsteps+1, 1) )  # define stepsize prototypes in the course ...
-
-        mf = np.zeros( (1, ndim) )  # initialize feature means
-        st = np.ones( (1, ndim) )   # and standard deviations
 
         if self.doztr:
             fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
@@ -700,7 +678,7 @@ class CGMLVQ:
         stepsizem[0] = etam
         stepsizep[0] = etap
 
-        tpr, fpr, auroc, thresholds = self.__compute_roc__( lbl>1, score )
+        _, _, auroc, _ = self.__compute_roc__( lbl>1, score )
 
         auc[0] = auroc
 
@@ -725,12 +703,8 @@ class CGMLVQ:
                 cw[inistep+1, icls-1] = np.sum(marg[0, np.where(lbl==icls)[0]] > 0) / np.sum(lbl==icls)
 
             # training set roc with respect to class 1 versus all others only
-            tpr, fpr, auroc, thresholds = self.__compute_roc__( lbl>1, score )
+            _, _, auroc, _ = self.__compute_roc__( lbl>1, score )
             auc[inistep+1] = auroc
-
-        # compute cost functions, crisp labels, margins and scores
-        # scores with respect to class 1 (negative) or all others (positive)
-        _, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
         # perform totalsteps training steps
         for jstep in range( ncop, self.totalsteps ):
@@ -743,9 +717,8 @@ class CGMLVQ:
             #       but is done here for consistency
 
             # compute cost functions for mean prototypes, mean matrix and both
-            costmp, _, _, score = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0       )
-            costmm, _, _, score = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, self.mu )
-            # [costm, ~,~,score ] = compute_costs(fvec,lbl,protmean,plbl,ommean,mu);
+            costmp, _, _, _ = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0       )
+            costmm, _, _, _ = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, self.mu )
 
             # remember old positions for Papari procedure
             ombefore = om.copy()
@@ -754,7 +727,7 @@ class CGMLVQ:
             # perform next step and compute costs etc.
             prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam )
 
-            costf, _, _, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
+            costf, _, _, _ = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
 
             # by default, step sizes are increased in every step
             etam = etam * incfac  # (small) increase of step sizes
@@ -762,8 +735,8 @@ class CGMLVQ:
 
             # costfunction values to compare with for Papari procedure
             # evaluated w.r.t. changing only matrix or prototype
-            costfp, _, _, score = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0       )
-            costfm, _, _, score = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       self.mu )
+            costfp, _, _, _ = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0       )
+            costfm, _, _, _ = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       self.mu )
 
             # heuristic extension of Papari procedure
             # treats matrix and prototype step sizes separately
@@ -802,7 +775,7 @@ class CGMLVQ:
 
             # ROC with respect to class 1 (negative) vs. all others (positive)
             binlbl = lbl > 1
-            tpr, fpr, auroc, thresholds = self.__compute_roc__( binlbl, score )
+            _, _, auroc, _ = self.__compute_roc__( binlbl, score )
             auc[jstep+1] = auroc
 
         # if the data was z transformed then also save the inverse prototypes,
@@ -815,6 +788,5 @@ class CGMLVQ:
         lambdaa = om.conj().T @ om  # actual relevance matrix
 
         self.gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
-
-        # training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
-        # param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop }
+        self.training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
+        self.param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop }
