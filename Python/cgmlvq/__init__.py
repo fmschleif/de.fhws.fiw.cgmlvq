@@ -272,46 +272,44 @@ class CGMLVQ:
 
         for i in range( 0, nfv ):  # loop through examples
 
-            # TODO: doppelter Code Start
+            fvi = fvec[i,:]  # actual example
+            lbi = lbl[i]     # actual example
 
-            fvc = fvec[i,:]
-            lbc = lbl[i]
+            # calculate squared distances to all prototypes
+            dist = np.empty( (npp, 1) )  # define squared distances
+            dist[:] = np.nan
 
-            distl = np.empty( (npp, 1) )
-            distl[:] = np.nan
+            for j in range( 0, npp ):  # distances from all prototypes
+                dist[j] = self.__euclid__( fvi, prot[j,:], omat )
 
-            for j in range( 0, npp ):
-                distl[j] = self.__euclid__( fvc, prot[j,:], omat )
+            # find the two winning prototypes
+            correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
+            incorrect = np.where( np.array([plbl]) != lbi )[1]  # all wrong   prototype indices
 
-            # find the two winning prototypes for example iii
-            correct   = np.where( np.array([plbl]) == lbc )[1]
-            incorrect = np.where( np.array([plbl]) != lbc )[1]
+            dJ, JJ = dist[correct].min(0), dist[correct].argmin(0)      # correct winner
+            dK, KK = dist[incorrect].min(0), dist[incorrect].argmin(0)  # wrong winner
 
-            dJJ, JJJ = distl[correct].min(0), distl[correct].argmin(0)
-            dKK, KKK = distl[incorrect].min(0), distl[incorrect].argmin(0)
+            # winner indices
+            jwin = correct[JJ][0]
+            kwin = incorrect[KK][0]
 
-            JJ = correct[JJJ][0]
-            KK = incorrect[KKK][0]  # winner indices
+            costf = costf + (dJ-dK) / (dJ+dK) / nfv
 
-            # TODO: doppelter Code Ende
-
-            costf = costf + (dJJ-dKK) / (dJJ+dKK) / nfv
-
-            marg[0, i] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
+            marg[0, i] = (dJ-dK) / (dJ+dK)  # gmlvq margin of example iii
 
             # un-normalized difference of distances
-            if lbc == 1:
+            if lbi == 1:
                 # score(iii)= 1./(1+exp((dKK-dJJ)/2))  # "the larger the better"
-                score[0, i] = dKK - dJJ
+                score[0, i] = dK - dJ
                 # distdiff(iii)=dKK-dJJ
                 # score (iii) = 0.5* (1+marg(iii))
             else:
                 # score(iii)= 1./(1+exp((dJJ-dKK)/2))  # "the larger the worse"
-                score[0, i] = dJJ - dKK
+                score[0, i] = dJ - dK
                 # distdiff(iii)=dJJ-dKK
                 # score (iii) = 0.5* (1-marg(iii))
 
-            crout[0, i] = plbl[JJ] * (dJJ <= dKK) + plbl[KK] * (dJJ > dKK)
+            crout[0, i] = plbl[jwin] * (dJ <= dK) + plbl[kwin] * (dJ > dK)
             # the class label according to nearest prototype
 
         # add penalty term
@@ -424,8 +422,6 @@ class CGMLVQ:
 
         for i in range( 0, nfv ):  # loop through (sum over) all training examples
 
-            # TODO: doppelter Code Start
-
             fvi = fvec[i,:]  # actual example
             lbi = lbl[i]     # actual example
 
@@ -433,7 +429,7 @@ class CGMLVQ:
             dist = np.empty( (npt, 1) )  # define squared distances
             dist[:] = np.nan
 
-            for j in range(0, npt):  # distances from all prototypes
+            for j in range( 0, npt ):  # distances from all prototypes
                 dist[j] = self.__euclid__( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
@@ -446,8 +442,6 @@ class CGMLVQ:
             # winner indices
             jwin = correct[JJ][0]
             kwin = incorrect[KK][0]
-
-            # TODO: doppelter Code Ende
 
             # winning prototypes
             wJ = prot[jwin,:]
