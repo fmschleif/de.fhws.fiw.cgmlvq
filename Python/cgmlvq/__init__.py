@@ -72,22 +72,16 @@ class CGMLVQ:
         Parameters
         ----------
         X : Training data
-        y : Target values.
+        y : Target values
         """
 
         X = np.array( X )
         y = np.array( y )
 
-        # row_length = X.shape[1]
-
-        # number_of_classes = len( np.unique(y) )
-
         if self.coefficients > 0:
             X = self.__fourier__( X )
 
         self.__run_single__( X, y, np.unique(y).T )
-
-        # backProts = self.__iFourier__( self.gmlvq_system["protosInv"], row_length )
 
 
     def predict( self, X ):
@@ -96,17 +90,17 @@ class CGMLVQ:
 
         Parameters
         ----------
-        X : Test data.
+        X : Test data
 
         Returns
         -------
-        y : Class labels for each data sample.
+        y : Class labels for each data sample
         """
 
         if self.coefficients > 0:
             X = self.__fourier__( X )
 
-        crisp, score, margin, costf = self.__classify_gmlvq__( X, np.ones((1,X.shape[0])).T )
+        crisp, _, _, _ = self.__classify_gmlvq__( X )
 
         return crisp[0]
 
@@ -118,7 +112,7 @@ class CGMLVQ:
         Parameters
         ----------
         **params : dict
-            Estimator parameters.
+            Estimator parameters
         """
 
         if 'doztr' in params:
@@ -163,8 +157,8 @@ class CGMLVQ:
         """
 
         lbl = np.array([ lbl ], dtype=int )
-        if lbl.shape[1] > 1:   # if lbl is row vector
-            lbl = lbl.T        # transpose to column vector
+        if lbl.shape[1] > 1:  # if lbl is row vector
+            lbl = lbl.T       # transpose to column vector
 
         if fvec.shape[0] != len(lbl):
             raise ValueError('number of training labels differs from number of samples')
@@ -191,7 +185,7 @@ class CGMLVQ:
         return lbl
 
 
-    def __classify_gmlvq__( self, fvec, lbl ):
+    def __classify_gmlvq__( self, fvec, lbl=0 ):
 
         """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
 
@@ -226,9 +220,8 @@ class CGMLVQ:
         ncls = len( np.unique(lbl) )  # number of classes
         nprots = len( plbl )          # total number of prototypes
 
-        # if( nargin<4 or isempty(lbl) ):  # ground truth unknown
-        #     lbl = np.ones( 1, ndim )     # fake labels, meaningless
-        #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
+        if lbl == 0:                     # ground truth unknown
+            lbl = np.ones( (1, nfv) ).T  # fake labels, meaningless
 
         # if z-transformation was applied in training, apply the same here:
         if self.doztr:
@@ -277,18 +270,18 @@ class CGMLVQ:
 
         omat = omat / np.sqrt(sum(sum(omat*omat)))  # normalized omat
 
-        for iii in range(0, nfv):  # loop through examples
+        for i in range( 0, nfv ):  # loop through examples
 
             # TODO: doppelter Code Start
 
-            fvc = fvec[iii,:]
-            lbc = lbl[iii]
+            fvc = fvec[i,:]
+            lbc = lbl[i]
 
             distl = np.empty( (npp, 1) )
             distl[:] = np.nan
 
-            for jk in range(0, npp):
-                distl[jk] = self.__euclid__( fvc, prot[jk,:], omat )
+            for j in range( 0, npp ):
+                distl[j] = self.__euclid__( fvc, prot[j,:], omat )
 
             # find the two winning prototypes for example iii
             correct   = np.where( np.array([plbl]) == lbc )[1]
@@ -304,21 +297,21 @@ class CGMLVQ:
 
             costf = costf + (dJJ-dKK) / (dJJ+dKK) / nfv
 
-            marg[0,iii] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
+            marg[0, i] = (dJJ-dKK) / (dJJ+dKK)  # gmlvq margin of example iii
 
             # un-normalized difference of distances
             if lbc == 1:
                 # score(iii)= 1./(1+exp((dKK-dJJ)/2))  # "the larger the better"
-                score[0,iii] = dKK - dJJ
+                score[0, i] = dKK - dJJ
                 # distdiff(iii)=dKK-dJJ
                 # score (iii) = 0.5* (1+marg(iii))
             else:
                 # score(iii)= 1./(1+exp((dJJ-dKK)/2))  # "the larger the worse"
-                score[0,iii] = dJJ - dKK
+                score[0, i] = dJJ - dKK
                 # distdiff(iii)=dJJ-dKK
                 # score (iii) = 0.5* (1-marg(iii))
 
-            crout[0,iii] = plbl[JJ] * (dJJ <= dKK) + plbl[KK] * (dJJ > dKK)
+            crout[0, i] = plbl[JJ] * (dJJ <= dKK) + plbl[KK] * (dJJ > dKK)
             # the class label according to nearest prototype
 
         # add penalty term
