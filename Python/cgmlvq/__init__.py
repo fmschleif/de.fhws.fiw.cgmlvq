@@ -80,8 +80,8 @@ class CGMLVQ:
         y : Target values
         """
 
-        X = np.array( X )
-        y = np.array( y )
+        X = np.array( X, dtype=np.cdouble )
+        y = np.array( y, dtype=int )
 
         if self.coefficients > 0:
             X = self.__fourier__( X )
@@ -101,6 +101,8 @@ class CGMLVQ:
         -------
         y : Class labels for each data sample
         """
+
+        X = np.array( X, dtype=np.cdouble )
 
         if self.coefficients > 0:
             X = self.__fourier__( X )
@@ -630,7 +632,7 @@ class CGMLVQ:
         if nfv <= ndim and self.mode == 0:
             print('dim. > # of examples, null-space correction recommended')
 
-        if self.doztr and self.mode < 3:
+        if not self.doztr and self.mode < 3:
             print('rescale relevances for proper interpretation')
 
         return etam, etap, decfac, incfac, ncop

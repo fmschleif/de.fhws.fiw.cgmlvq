@@ -26,8 +26,8 @@ for row in csv_reader:
     y.append( row[length] )
 
 
-X = np.array( X, dtype=float )
-y = np.array( y, dtype=float )
+X = np.array( X )
+y = np.array( y )
 
 X_train = X[0:120,:]
 y_train = y[0:120]
