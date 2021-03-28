@@ -191,6 +191,60 @@ class CGMLVQ:
         return lbl
 
 
+    def __classify_gmlvq__( self, fvec, lbl ):
+
+        """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
+
+        Parameters
+        ----------
+        fvec : set of feature vectors to be classified
+
+        Returns
+        -------
+        crisp : crisp labels of Nearest-Prototype-Classifier
+        score : distance based score with respect to class 1
+        margin : GLVQ-type margin with respect to class 1 evaluated in glvqcosts
+        costf : GLVQ costfunction (if ground truth is known)
+        """
+
+        # for classification with unknown ground truth labels, use:
+        # crisp, score = classify_gmlvq( fvec )
+
+        # if used for testing with known test labels (lbl) you can use:
+        # crisp, score, margin, costf = classify_gmlvq( fvec, lbl )
+
+        prot    = self.gmlvq_system['protos']         # prototypes
+        lambdaa = self.gmlvq_system['lambda']         # relevance matrix lambda
+        plbl    = self.gmlvq_system['plbl']           # prototype labels
+        mf      = self.gmlvq_system['mean_features']  # mean features from potential z-score
+        st      = self.gmlvq_system['std_features']   # st.dev. from potential z-score transf.
+
+        omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
+
+        nfv = fvec.shape[0]           # number of feature vectors in training set
+        ndim = fvec.shape[1]          # dimension of feature vectors
+        ncls = len( np.unique(lbl) )  # number of classes
+        nprots = len( plbl )          # total number of prototypes
+
+        # if( nargin<4 or isempty(lbl) ):  # ground truth unknown
+        #     lbl = np.ones( 1, ndim )     # fake labels, meaningless
+        #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
+
+        # if z-transformation was applied in training, apply the same here:
+        if self.doztr:
+            for i in range( 0, nfv ):
+                fvec[i,:] = (fvec[i,:] - mf) / st
+
+        # call glvqcosts, crout=crisp labels
+        # score between 0= "class 1 certainly" and 1= "any other class"
+        # margin and costf are meaningful only if lbl is ground truth
+
+        # cost function can be computed without penalty term for margins/score
+        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, 0 )
+
+        return crisp, score, margin, costf
+
+
     def __compute_costs__( self, fvec, lbl, prot, plbl, omat, mu ):
 
         """ Calculates gmlvq cost function, labels and margins for a set of labelled feature vectors, given a particular lvq system.
@@ -833,57 +887,3 @@ class CGMLVQ:
 
         # training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
         # param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
-
-
-    def __classify_gmlvq__( self, fvec, lbl ):
-
-        """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
-
-        Parameters
-        ----------
-        fvec : set of feature vectors to be classified
-
-        Returns
-        -------
-        crisp : crisp labels of Nearest-Prototype-Classifier
-        score : distance based score with respect to class 1
-        margin : GLVQ-type margin with respect to class 1 evaluated in glvqcosts
-        costf : GLVQ costfunction (if ground truth is known)
-        """
-
-        # for classification with unknown ground truth labels, use:
-        # crisp, score = classify_gmlvq( fvec )
-
-        # if used for testing with known test labels (lbl) you can use:
-        # crisp, score, margin, costf = classify_gmlvq( fvec, lbl )
-
-        prot    = self.gmlvq_system['protos']         # prototypes
-        lambdaa = self.gmlvq_system['lambda']         # relevance matrix lambda
-        plbl    = self.gmlvq_system['plbl']           # prototype labels
-        mf      = self.gmlvq_system['mean_features']  # mean features from potential z-score
-        st      = self.gmlvq_system['std_features']   # st.dev. from potential z-score transf.
-
-        omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
-
-        nfv = fvec.shape[0]           # number of feature vectors in training set
-        ndim = fvec.shape[1]          # dimension of feature vectors
-        ncls = len( np.unique(lbl) )  # number of classes
-        nprots = len( plbl )          # total number of prototypes
-
-        # if( nargin<4 or isempty(lbl) ):  # ground truth unknown
-        #     lbl = np.ones( 1, ndim )     # fake labels, meaningless
-        #     lbl[ceil(ndim/2),end] = 2    # if ground truth unknown
-
-        # if z-transformation was applied in training, apply the same here:
-        if self.doztr:
-            for i in range( 0, nfv ):
-                fvec[i,:] = (fvec[i,:] - mf) / st
-
-        # call glvqcosts, crout=crisp labels
-        # score between 0= "class 1 certainly" and 1= "any other class"
-        # margin and costf are meaningful only if lbl is ground truth
-
-        # cost function can be computed without penalty term for margins/score
-        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, 0 )
-
-        return crisp, score, margin, costf
