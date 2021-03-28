@@ -596,15 +596,18 @@ class CGMLVQ:
         for ic in range(0, nprots):  # compute class-conditional means
             proti[ic, :] = np.mean( fvec[np.where(lbl == plbl[ic]), :][0], axis=0 )
 
+        # reproducible random numbers
+        np.random.seed( 291024 )
+
         # displace randomly from class-conditional means
-        proti = proti * (0.99 + 0.02 * np.random.rand(proti.shape[0], proti.shape[1]))
+        proti = proti * (0.99 + 0.02 * np.random.rand(proti.shape[1], proti.shape[0]).T)
         # to do: run k-means per class
 
         # (global) matrix initialization, identity or random
         omi = np.identity( ndim )  # works for all values of mode if rndinit == 0
 
         if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
-            omi = np.random.rand( ndim, ndim ) - 0.5
+            omi = np.random.rand( ndim, ndim ).T - 0.5
             omi = omi.conj().T @ omi  # square symmetric
             # matrix of uniform random numbers
 
@@ -661,11 +664,6 @@ class CGMLVQ:
         etap = etap0  # intitial step size prototypes
 
         lbl = self.__check_arguments__( plbl, lbl, fvec, ncop )
-
-        # reproducible random numbers
-        #rng('default')
-        rngseed=291024
-        #rng(rngseed)
 
         nfv = fvec.shape[0]            # number of feature vectors in training set
         ndim = fvec.shape[1]           # dimension of feature vectors
@@ -825,4 +823,4 @@ class CGMLVQ:
         self.gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
 
         # training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw, 'auroc': auc }
-        # param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop, 'rngseed': rngseed }
+        # param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop }
