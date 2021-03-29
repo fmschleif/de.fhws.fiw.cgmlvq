@@ -250,8 +250,8 @@ class CGMLVQ:
 
         Parameters
         ----------
-        fvec : nvf feature vectors of dim. ndim fvec(1:nfv,1:ndim);
-        lbl : data labels  lbl(1:nfv);
+        fvec : nvf feature vectors of dim. ndim
+        lbl : data labels
         prot : prototypes
         plbl : prototype labels
         omat : global matrix omega
@@ -326,7 +326,7 @@ class CGMLVQ:
         ----------
         binlbl : binarized labels 0,1 for two classes (user-defined selection in multi-class problems)
         score : continuous valued score, e.g. glvq-score 0....1
-        nthresh : number of threshold values, default: 2000
+        nthresh : number of threshold values, default: 5000
         """
 
         # Remark:
@@ -386,8 +386,8 @@ class CGMLVQ:
 
         Parameters
         ----------
-        fvec : nvf feature vectors of dim. ndim  fvec(1:nfv,1:ndim);
-        lbl : training labels  lbl(1:nfv);
+        fvec : nvf feature vectors of dim. ndim
+        lbl : training labels
         proti : prototypes before the step
         plbl : prototype labels
         omegai : global matrix before the step
