@@ -46,7 +46,7 @@ class CGMLVQ:
     Example
     -------
     >>> X = [[0], [1], [2], [3]]
-    >>> Y = [0, 0, 1, 1]
+    >>> Y = [1, 1, 2, 2]
     >>> from cgmlvq import CGMLVQ
     >>> cgmlvq = CGMLVQ()
     >>> cgmlvq.set_params( mode=0 )
