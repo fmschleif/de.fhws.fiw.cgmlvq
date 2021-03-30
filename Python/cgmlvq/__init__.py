@@ -260,8 +260,8 @@ class CGMLVQ:
         Returns
         -------
         costf : glvq-costs per example
-        marg : margins of classifying the examples
         crout : crisp classifier outputs
+        marg : margins of classifying the examples
         score : distance based "scores"
         """
 
