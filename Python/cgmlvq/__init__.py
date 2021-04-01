@@ -23,17 +23,8 @@ class CGMLVQ:
 
     Attributes
     ----------
-    doztr : bool, default=(True/False)
+    doztr : bool, default=True
         If true, do z transformation, otherwise you may have to adjust step sizes.
-
-    rndinit : bool, default=(True/False)
-        If true, initialize the relevance matrix randomly (if applicable), otherwise it is proportional to the identity matrix.
-
-    mu : int, default=0
-        Controls penalty of singular relevance matrix
-
-        - 0 = unmodified GMLVQ algorithm (recommended for initial experiments)
-        - > 0 = non-singular relevance matrix is enforced, mu controls dominance of leading eigenvectors continuously, prevents singular Lambda
 
     mode : int, default=1
         Control LVQ version
@@ -42,6 +33,15 @@ class CGMLVQ:
         - 1 = GMLVQ: matrix with null-space correction
         - 2 = GRLVQ: diagonal matrix only, sensitive to step sizes
         - 3 = GLVQ: relevance matrix proportional to identity (with Euclidean distance), "normalized identity matrix"
+
+    mu : int, default=0
+        Controls penalty of singular relevance matrix
+
+        - 0 = unmodified GMLVQ algorithm (recommended for initial experiments)
+        - > 0 = non-singular relevance matrix is enforced, mu controls dominance of leading eigenvectors continuously, prevents singular Lambda
+
+    rndinit : bool, default=False
+        If true, initialize the relevance matrix randomly (if applicable), otherwise it is proportional to the identity matrix.
 
     Example
     -------
