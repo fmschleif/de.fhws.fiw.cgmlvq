@@ -1,0 +1,20 @@
+http://mathesaurus.sourceforge.net/matlab-numpy.html
+
+
+Matlab                   Python
+------                   ------
+
+[v,i] = max(a)	         v, i = a.max(0), a.argmax(0)
+
+a'	                     a.conj().T
+a.' or transpose(a)	     a.T
+
+A .* A                   A * A
+A * A                    A @ A
+
+a .^ b	                 a ** b
+
+a^2 -> a*a
+a^x                      ???
+
+mean(a)                  np.mean(a).T
