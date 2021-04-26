@@ -9,7 +9,7 @@ import os
 X = []
 y = []
 
-csv_file = open( os.path.join(os.getcwd(), "iris.csv") )
+csv_file = open( os.path.join(os.getcwd(), "data sets/iris.csv") )
 
 csv_reader = csv.reader( csv_file, delimiter=',' )
 
@@ -27,7 +27,7 @@ for row in csv_reader:
 
 
 X = np.array( X )
-y = np.array( y )
+y = np.array( y, dtype=int )
 
 X_train = X[0:120,:]
 y_train = y[0:120]
