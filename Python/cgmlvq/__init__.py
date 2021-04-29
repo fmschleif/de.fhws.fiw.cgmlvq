@@ -84,9 +84,9 @@ class CGMLVQ:
         y = np.array( y, dtype=int )
 
         if self.coefficients > 0:
-            X = self.__fourier__( X )
+            X = self.__fourier( X )
 
-        self.__run_single__( X, y )
+        self.__run_single( X, y )
 
 
     def predict( self, X ):
@@ -105,9 +105,9 @@ class CGMLVQ:
         X = np.array( X, dtype=np.cdouble )
 
         if self.coefficients > 0:
-            X = self.__fourier__( X )
+            X = self.__fourier( X )
 
-        crisp, _, _, _ = self.__classify_gmlvq__( X )
+        crisp, _, _, _ = self.__classify_gmlvq( X )
 
         return crisp[0]
 
@@ -147,7 +147,7 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
 
 
-    def __check_arguments__( self, lbl, fvec, ncop ):
+    def __check_arguments( self, lbl, fvec, ncop ):
 
         """ Check consistency of some arguments and input parameters.
 
@@ -194,7 +194,7 @@ class CGMLVQ:
         return lbl, plbl
 
 
-    def __classify_gmlvq__( self, fvec, lbl=0 ):
+    def __classify_gmlvq( self, fvec, lbl=0 ):
 
         """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
 
@@ -239,12 +239,12 @@ class CGMLVQ:
         # margin and costf are meaningful only if lbl is ground truth
 
         # cost function can be computed without penalty term for margins/score
-        costf, crisp, margin, score = self.__compute_costs__( fvec, lbl, prot, plbl, omat, 0 )
+        costf, crisp, margin, score = self.__compute_costs( fvec, lbl, prot, plbl, omat, 0 )
 
         return crisp, score, margin, costf
 
 
-    def __compute_costs__( self, fvec, lbl, prot, plbl, omat, mu ):
+    def __compute_costs( self, fvec, lbl, prot, plbl, omat, mu ):
 
         """ Calculates gmlvq cost function, labels and margins for a set of labelled feature vectors, given a particular lvq system.
 
@@ -285,7 +285,7 @@ class CGMLVQ:
             dist[:] = np.nan
 
             for j in range( 0, npp ):  # distances from all prototypes
-                dist[j] = self.__euclid__( fvi, prot[j,:], omat )
+                dist[j] = self.__euclid( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
             correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
@@ -318,7 +318,7 @@ class CGMLVQ:
         return costf, crout, marg, score
 
 
-    def __compute_roc__( self, binlbl, score, nthresh=5000 ):
+    def __compute_roc( self, binlbl, score, nthresh=5000 ):
 
         """ Threshold-based computation of the ROC scores are rescaled to fall into the range 0...1 and then compared with nthresh equi-distant thresholds note that nthresh must be large enough to guarantee correct ROC computation.
 
@@ -379,7 +379,7 @@ class CGMLVQ:
         return tpr, fpr, auroc, thresh
 
 
-    def __do_batchstep__( self, fvec, lbl, proti, plbl, omegai, etap, etam ):
+    def __do_batchstep( self, fvec, lbl, proti, plbl, omegai, etap, etam ):
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
@@ -422,7 +422,7 @@ class CGMLVQ:
             dist[:] = np.nan
 
             for j in range( 0, npt ):  # distances from all prototypes
-                dist[j] = self.__euclid__( fvi, prot[j,:], omat )
+                dist[j] = self.__euclid( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
             correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
@@ -498,7 +498,7 @@ class CGMLVQ:
         return prot, omat
 
 
-    def __do_inversezscore__( self, fvec, mf, st ):
+    def __do_inversezscore( self, fvec, mf, st ):
 
         ndim = fvec.shape[1]
 
@@ -508,7 +508,7 @@ class CGMLVQ:
         return fvec
 
 
-    def __do_zscore__( self, fvec ):
+    def __do_zscore( self, fvec ):
 
         """ Perform a z-score transformation of fvec
 
@@ -536,7 +536,7 @@ class CGMLVQ:
         return fvec, mf, st
 
 
-    def __euclid__( self, X, W, omat ):
+    def __euclid( self, X, W, omat ):
 
         # D = (X' - P')' * (omat' * omat) * (X' - P');
         # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
@@ -547,7 +547,7 @@ class CGMLVQ:
         return D
 
 
-    def __fourier__( self, X ):
+    def __fourier( self, X ):
 
         """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
         """
@@ -563,7 +563,7 @@ class CGMLVQ:
         return Y
 
 
-    def __set_initial__( self, fvec, lbl, plbl ):
+    def __set_initial( self, fvec, lbl, plbl ):
 
         """ Initialization of prototypes close to class conditional means small random displacements to break ties
 
@@ -605,7 +605,7 @@ class CGMLVQ:
         return proti, omi
 
 
-    def __set_parameters__( self, fvec ):
+    def __set_parameters( self, fvec ):
 
         """ Set general parameters
             Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
@@ -640,14 +640,14 @@ class CGMLVQ:
         return etam, etap, decfac, incfac, ncop
 
 
-    def __run_single__( self, fvec, lbl ):
+    def __run_single( self, fvec, lbl ):
 
-        etam0, etap0, decfac, incfac, ncop = self.__set_parameters__( fvec )
+        etam0, etap0, decfac, incfac, ncop = self.__set_parameters( fvec )
 
         etam = etam0  # initial step size matrix
         etap = etap0  # intitial step size prototypes
 
-        lbl, plbl = self.__check_arguments__( lbl, fvec, ncop )
+        lbl, plbl = self.__check_arguments( lbl, fvec, ncop )
 
         nfv = fvec.shape[0]            # number of feature vectors in training set
         ncls = len( np.unique(plbl) )  # number of classes
@@ -662,12 +662,12 @@ class CGMLVQ:
         stepsizep = np.zeros( (self.totalsteps+1, 1) )  # define stepsize prototypes in the course ...
 
         if self.doztr:
-            fvec, mf, st = self.__do_zscore__( fvec.copy() )  # perform z-score transformation
+            fvec, mf, st = self.__do_zscore( fvec.copy() )  # perform z-score transformation
         else:
-            _, mf, st = self.__do_zscore__( fvec.copy() )     # evaluate but don't apply
+            _, mf, st = self.__do_zscore( fvec.copy() )     # evaluate but don't apply
 
         # initialize prototypes and omega
-        proti, omi = self.__set_initial__( fvec, lbl, plbl )
+        proti, omi = self.__set_initial( fvec, lbl, plbl )
 
         # initial values
         prot = proti
@@ -679,13 +679,13 @@ class CGMLVQ:
         omcop   = np.zeros( (om.shape[1], ncop, om.shape[0]), dtype=np.cdouble )
 
         # calculate initial values for learning curves
-        costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
+        costf, _, marg, score = self.__compute_costs( fvec, lbl, prot, plbl, om, self.mu )
         te[0] = np.sum(marg>0) / nfv
         cf[0] = costf
         stepsizem[0] = etam
         stepsizep[0] = etap
 
-        _, _, auroc, _ = self.__compute_roc__( lbl>1, score )
+        _, _, auroc, _ = self.__compute_roc( lbl>1, score )
 
         auc[0] = auroc
 
@@ -693,12 +693,12 @@ class CGMLVQ:
         for inistep in range( 0, ncop ):
 
             # actual batch gradient step
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam )
+            prot, om = self.__do_batchstep( fvec, lbl, prot, plbl, om, etap, etam )
             protcop[:,inistep,:] = prot.T
             omcop[:,inistep,:] = om.T
 
             # determine and save training set performances
-            costf, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
+            costf, _, marg, score = self.__compute_costs( fvec, lbl, prot, plbl, om, self.mu )
             te[inistep+1] = np.sum(marg>0) / nfv
             cf[inistep+1] = costf
             stepsizem[inistep+1] = etam
@@ -710,7 +710,7 @@ class CGMLVQ:
                 cw[inistep+1, icls-1] = np.sum(marg[0, np.where(lbl==icls)[0]] > 0) / np.sum(lbl==icls)
 
             # training set roc with respect to class 1 versus all others only
-            _, _, auroc, _ = self.__compute_roc__( lbl>1, score )
+            _, _, auroc, _ = self.__compute_roc( lbl>1, score )
             auc[inistep+1] = auroc
 
         # perform totalsteps training steps
@@ -724,17 +724,17 @@ class CGMLVQ:
             #       but is done here for consistency
 
             # compute cost functions for mean prototypes, mean matrix and both
-            costmp, _, _, _ = self.__compute_costs__( fvec, lbl, protmean, plbl, om,     0       )
-            costmm, _, _, _ = self.__compute_costs__( fvec, lbl, prot,     plbl, ommean, self.mu )
+            costmp, _, _, _ = self.__compute_costs( fvec, lbl, protmean, plbl, om,     0       )
+            costmm, _, _, _ = self.__compute_costs( fvec, lbl, prot,     plbl, ommean, self.mu )
 
             # remember old positions for Papari procedure
             ombefore = om.copy()
             protbefore = prot.copy()
 
             # perform next step and compute costs etc.
-            prot, om = self.__do_batchstep__( fvec, lbl, prot, plbl, om, etap, etam )
+            prot, om = self.__do_batchstep( fvec, lbl, prot, plbl, om, etap, etam )
 
-            costf, _, _, _ = self.__compute_costs__( fvec, lbl, prot, plbl, om, self.mu )
+            costf, _, _, _ = self.__compute_costs( fvec, lbl, prot, plbl, om, self.mu )
 
             # by default, step sizes are increased in every step
             etam = etam * incfac  # (small) increase of step sizes
@@ -742,8 +742,8 @@ class CGMLVQ:
 
             # costfunction values to compare with for Papari procedure
             # evaluated w.r.t. changing only matrix or prototype
-            costfp, _, _, _ = self.__compute_costs__( fvec, lbl, prot,       plbl, ombefore, 0       )
-            costfm, _, _, _ = self.__compute_costs__( fvec, lbl, protbefore, plbl, om,       self.mu )
+            costfp, _, _, _ = self.__compute_costs( fvec, lbl, prot,       plbl, ombefore, 0       )
+            costfm, _, _, _ = self.__compute_costs( fvec, lbl, protbefore, plbl, om,       self.mu )
 
             # heuristic extension of Papari procedure
             # treats matrix and prototype step sizes separately
@@ -768,7 +768,7 @@ class CGMLVQ:
 
             # determine training and test set performances
             # here: costfunction without penalty term!
-            costf0, _, marg, score = self.__compute_costs__( fvec, lbl, prot, plbl, om, 0 )
+            costf0, _, marg, score = self.__compute_costs( fvec, lbl, prot, plbl, om, 0 )
 
             # compute total and class-wise training set errors
             te[jstep+1] = np.sum(marg>0) / nfv
@@ -782,13 +782,13 @@ class CGMLVQ:
 
             # ROC with respect to class 1 (negative) vs. all others (positive)
             binlbl = lbl > 1
-            _, _, auroc, _ = self.__compute_roc__( binlbl, score )
+            _, _, auroc, _ = self.__compute_roc( binlbl, score )
             auc[jstep+1] = auroc
 
         # if the data was z transformed then also save the inverse prototypes,
         # actually it is not necessary since the mf and st are returned.
         if self.doztr:
-            protsInv = self.__do_inversezscore__( prot.copy(), mf, st )
+            protsInv = self.__do_inversezscore( prot.copy(), mf, st )
         else:
             protsInv = prot
 
