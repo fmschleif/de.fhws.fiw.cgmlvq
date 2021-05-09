@@ -216,6 +216,8 @@ class CGMLVQ:
         # if used for testing with known test labels (lbl) you can use:
         # crisp, score, margin, costf = classify_gmlvq( fvec, lbl )
 
+        fvec = np.copy( fvec )
+
         prot    = self.gmlvq_system['protos']         # prototypes
         lambdaa = self.gmlvq_system['lambda']         # relevance matrix lambda
         plbl    = self.gmlvq_system['plbl']           # prototype labels
@@ -458,7 +460,7 @@ class CGMLVQ:
             chp[kwin,:] = chp[kwin,:] - dwK.conj().T  # incorrect winner summed update
             chm = chm - (f1 + f2)                     # matrix summed update
 
-        # singularity control: add  derivative of penalty term times mu
+        # singularity control: add derivative of penalty term times mu
         if self.mu > 0:
             chm = chm + self.mu * np.linalg.pinv( omat.conj().T )
 
@@ -480,7 +482,7 @@ class CGMLVQ:
         omat = omat + etam * chm / np.sqrt(n2chm)
 
         # if diagonal matrix only
-        if self.mode == 2:                     # probably obsolete as chm diagonal
+        if self.mode == 2:                   # probably obsolete as chm diagonal
             omat = np.diag( np.diag(omat) )  # reduce to diagonal matrix
 
         #  nullspace correction using Moore Penrose pseudo-inverse
