@@ -1,11 +1,12 @@
-addpath( 'benchmarks(PATH)' );
-addpath( 'display(PATH)' );
-addpath( 'fourier(PATH)' );
+addpath( '..' );
+addpath( '../benchmarks(PATH)' );
+addpath( '../display(PATH)' );
+addpath( '../fourier(PATH)' );
 
 
-  A = load( 'iris.mat' );
-% A = load( 'twoclass-simple.mat' );
-% A = load( 'twoclass-difficult.mat' );
+  A = load( '../iris.mat' );
+% A = load( '../twoclass-simple.mat' );
+% A = load( '../twoclass-difficult.mat' );
 
 
 X_train = A.fvec( 1:120, : );
