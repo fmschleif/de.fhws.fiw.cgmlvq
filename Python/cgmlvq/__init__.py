@@ -302,7 +302,7 @@ class CGMLVQ:
 
             costf = costf + (dJ-dK) / (dJ+dK) / nfv
 
-            marg[0, i] = (dJ-dK) / (dJ+dK)  # gmlvq margin of example iii
+            marg[0, i] = (dJ-dK) / (dJ+dK)  # gmlvq margin of example i
 
             # un-normalized difference of distances
             if lbi == 1:
@@ -310,8 +310,8 @@ class CGMLVQ:
             else:
                 score[0, i] = dJ - dK
 
-            crout[0, i] = plbl[jwin] * (dJ <= dK) + plbl[kwin] * (dJ > dK)
             # the class label according to nearest prototype
+            crout[0, i] = plbl[jwin] * (dJ <= dK) + plbl[kwin] * (dJ > dK)
 
         # add penalty term
         if mu > 0:
@@ -540,9 +540,10 @@ class CGMLVQ:
 
     def __euclid( self, X, W, omat ):
 
-        # D = (X' - P')' * (omat' * omat) * (X' - P');
-        # Note that (B'A') = (AB)', therefore the formula can be written more intuitively in the simpler form, which is also cheaper to compute:
+        # D = (X.T - W.T).T @ (omat.T @ omat) @ (X.T - W.T)
+        # D = D.real
 
+        # simpler form, which is also cheaper to compute
         D = np.linalg.norm( omat @ np.array([X-W]).T )**2
         D = D.real
 
