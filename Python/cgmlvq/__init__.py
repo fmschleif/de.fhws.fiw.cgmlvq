@@ -161,6 +161,14 @@ class CGMLVQ:
 
     def get_params( self ):
 
+        """ Get parameters for this estimator.
+
+        Returns
+        -------
+        params : dict
+            Parameter names mapped to their values.
+        """
+
         return { 'coefficients': self.coefficients, 'totalsteps': self.totalsteps, 'doztr': self.doztr, 'mode': self.mode, 'mu': self.mu, 'rndinit': self.rndinit }
 
 
