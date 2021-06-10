@@ -159,6 +159,11 @@ class CGMLVQ:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
 
 
+    def get_params( self ):
+
+        return { 'coefficients': self.coefficients, 'totalsteps': self.totalsteps, 'doztr': self.doztr, 'mode': self.mode, 'mu': self.mu, 'rndinit': self.rndinit }
+
+
     def __check_arguments( self, lbl, fvec, ncop ):
 
         """ Check consistency of some arguments and input parameters.
