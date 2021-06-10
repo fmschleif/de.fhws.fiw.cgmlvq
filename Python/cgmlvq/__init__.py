@@ -2,7 +2,7 @@
 
 # Author: Matthias Nunn
 
-from scipy.fft import fft, ifft
+from scipy.fft import fft
 from scipy.linalg import sqrtm
 
 import math
