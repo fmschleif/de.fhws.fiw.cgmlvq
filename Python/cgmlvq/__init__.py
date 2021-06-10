@@ -21,8 +21,6 @@ class CGMLVQ:
     totalsteps : int, default=50
         Number of batch gradient steps to be performed in each training run.
 
-    Attributes
-    ----------
     doztr : bool, default=True
         If true, do z transformation, otherwise you may have to adjust step sizes.
 
@@ -49,7 +47,6 @@ class CGMLVQ:
     >>> Y = [1, 1, 2, 2]
     >>> from cgmlvq import CGMLVQ
     >>> cgmlvq = CGMLVQ()
-    >>> cgmlvq.set_params( mode=0 )
     >>> cgmlvq.fit( X, y )
     >>> print( cgmlvq.predict([[0], [1]]) )
 
@@ -58,16 +55,14 @@ class CGMLVQ:
     Based on the Matlab implementation from Michiel Straat.
     """
 
-    doztr = True
-    mode = 1
-    mu = 0
-    rndinit = False
-
-
-    def __init__( self, coefficients=0, totalsteps=50 ):
+    def __init__( self, coefficients=0, totalsteps=50, doztr=True, mode=1, mu=0, rndinit=False ):
 
         self.coefficients = coefficients
         self.totalsteps = totalsteps
+        self.doztr = doztr
+        self.mode = mode
+        self.mu = mu
+        self.rndinit = rndinit
 
 
     def fit( self, X, y ):
@@ -102,6 +97,9 @@ class CGMLVQ:
         y : Class labels for each data sample
         """
 
+        if self.gmlvq_system is None:
+            raise ValueError( 'Changed parameter coefficients or doztr. Please call method fit again!' )
+
         X = np.array( X, dtype=np.cdouble )
 
         if self.coefficients > 0:
@@ -122,9 +120,23 @@ class CGMLVQ:
             Estimator parameters
         """
 
+        if 'coefficients' in params:
+            if params['coefficients'] >= 0:
+                self.coefficients = params['coefficients']
+                self.gmlvq_system = None
+            else:
+                raise ValueError( 'Invalid parameter coefficients. Check the list of available parameters!' )
+
+        if 'totalsteps' in params:
+            if params['totalsteps'] >= 0:
+                self.totalsteps = params['totalsteps']
+            else:
+                raise ValueError( 'Invalid parameter totalsteps. Check the list of available parameters!' )
+
         if 'doztr' in params:
             if type( params['doztr'] ) == bool:
                 self.doztr = params['doztr']
+                self.gmlvq_system = None
             else:
                 raise ValueError( 'Invalid parameter doztr. Check the list of available parameters!' )
 
