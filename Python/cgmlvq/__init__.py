@@ -565,7 +565,7 @@ class CGMLVQ:
 
     def __euclid( self, X, W, omat ):
 
-        # D = (X - W).T @ omat.T @ omat @ (X - W)
+        # D = (X - W).conj().T @ omat.conj().T @ omat @ (X - W)
         # D = D.real
 
         # simpler form, which is also cheaper to compute
