@@ -83,22 +83,6 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( score, self.load_data('test_compute_costs_mu1_score.csv')    )
 
 
-    def test_compute_roc( self ):
-
-        cgmlvq = CGMLVQ()
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        _, _, _, score = cgmlvq._CGMLVQ__compute_costs( self.X_train, self.y_train, proti, np.unique(self.y_train), omi, 0 )
-
-        tpr, fpr, auroc, thresh = cgmlvq._CGMLVQ__compute_roc( np.array([self.y_train]).T>1, score )
-
-        np.testing.assert_array_almost_equal( tpr, self.load_data('test_compute_roc_tpr.csv') )
-        np.testing.assert_array_almost_equal( fpr, self.load_data('test_compute_roc_fpr.csv') )
-        np.testing.assert_array_almost_equal( auroc, self.load_data('test_compute_roc_auroc.csv') )
-        np.testing.assert_array_almost_equal( thresh, self.load_data('test_compute_roc_thresh.csv')[0] )
-
-
     def test_do_batchstep( self ):
 
         cgmlvq = CGMLVQ()
