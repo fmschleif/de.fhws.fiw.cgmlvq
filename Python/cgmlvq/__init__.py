@@ -626,7 +626,6 @@ class CGMLVQ:
 
         te = np.zeros( (self.totalsteps+1, 1) )   # define total error
         cf = np.zeros( (self.totalsteps+1, 1) )   # define cost function
-
         cw = np.zeros( (self.totalsteps+1, ncls) )  # define class-wise errors
 
         stepsizem = np.zeros( (self.totalsteps+1, 1) )  # define stepsize matrix in the course of training
@@ -638,11 +637,7 @@ class CGMLVQ:
             _, mf, st = self.__do_zscore( fvec.copy() )     # evaluate but don't apply
 
         # initialize prototypes and omega
-        proti, omi = self.__set_initial( fvec, lbl, plbl )
-
-        # initial values
-        prot = proti
-        om = omi
+        prot, om = self.__set_initial( fvec, lbl, plbl )
 
         # copies of prototypes and omegas stored in protcop and omcop
         # for the adaptive step size procedure
@@ -680,11 +675,10 @@ class CGMLVQ:
         for jstep in range( ncop, self.totalsteps ):
 
             # calculate mean positions over latest steps
+            # note: normalization does not change cost function value but is done here for consistency
             protmean = np.mean( protcop, 1 ).T
             ommean = np.mean( omcop, 1 ).T
             ommean = ommean / np.sqrt(np.sum(np.sum(np.abs(ommean)**2)))
-            # note: normalization does not change cost function value
-            #       but is done here for consistency
 
             # compute cost functions for mean prototypes, mean matrix and both
             costmp, _, _, _ = self.__compute_costs( fvec, lbl, protmean, plbl, om,     0       )
@@ -696,8 +690,6 @@ class CGMLVQ:
 
             # perform next step and compute costs etc.
             prot, om = self.__do_batchstep( fvec, lbl, prot, plbl, om, etap, etam )
-
-            costf, _, _, _ = self.__compute_costs( fvec, lbl, prot, plbl, om, self.mu )
 
             # by default, step sizes are increased in every step
             etam = etam * incfac  # (small) increase of step sizes
