@@ -539,6 +539,11 @@ class CGMLVQ:
         fvec : feature vectors
         lbl : data labels
         plbl : prototype labels
+
+        Returns
+        -------
+        proti : prototypes matrix
+        omi : omega matrix
         """
 
         ndim = fvec.shape[1]  # dimension of feature vectors
