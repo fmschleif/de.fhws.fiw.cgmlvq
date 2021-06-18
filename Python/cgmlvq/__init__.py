@@ -117,7 +117,7 @@ class CGMLVQ:
         if self.coefficients > 0:
             X = self.__do_fourier( X )
 
-        crisp, _, _, _ = self.__classify_gmlvq( X )
+        crisp = self.__classify_gmlvq( X )
 
         return crisp[0]
 
@@ -183,27 +183,24 @@ class CGMLVQ:
 
         Returns
         -------
-        lbl : data set labels, protentially transposed for consistency
-        plbl : prototype labels
+        y : data set labels, protentially transposed for consistency
+        wlbl : prototype labels
         """
+
+        m = X.shape[0]
+        n = X.shape[1]
 
         y = np.array( [y], dtype=int )
         if y.shape[1] > 1:  # if lbl is row vector
             y = y.T         # transpose to column vector
 
-        plbl = np.unique( y )
+        wlbl = np.unique( y )
 
         if X.shape[0] != len(y):
             raise ValueError('number of training labels differs from number of samples')
 
         if min(y) != 1 or max(y) != len(np.unique(y)):
             raise ValueError('data labels should be: 1,2,3,...,nclasses')
-
-        if len(np.unique(plbl)) != len(np.unique(y)):
-            raise ValueError('number of prototype labels must equal number of classes')
-
-        if sum(np.unique(plbl.T) != np.unique(y)) > 0:
-            raise ValueError('prototype labels inconsistent with data, please rename/reorder')
 
         st = np.zeros( X.shape[1] )
         for i in range( 0, X.shape[1] ):
@@ -213,12 +210,18 @@ class CGMLVQ:
             raise ValueError('at least one feature displays (close to) zero variance')
 
         if ncop >= self.totalsteps:
-            raise ValueError('number of gradient steps must be larger than ncop')
+            raise ValueError('number of gradient steps must be larger than ncop (5)')
 
-        return y, plbl
+        if m <= n and self.mode == 0:
+            print('dim. > # of examples, null-space correction recommended')
+
+        if not self.doztr and self.mode < 3:
+            print('rescale relevances for proper interpretation')
+
+        return y, wlbl
 
 
-    def __classify_gmlvq( self, X, y=0 ):
+    def __classify_gmlvq( self, X ):
 
         """ Apply a gmlvq classifier to a given data set with unknown class labels for predication or known class labels for testing/validation
 
@@ -229,45 +232,30 @@ class CGMLVQ:
         Returns
         -------
         crisp : crisp labels of Nearest-Prototype-Classifier
-        score : distance based score with respect to class 1
-        margin : GLVQ-type margin with respect to class 1 evaluated in glvqcosts
-        costf : GLVQ costfunction (if ground truth is known)
         """
 
-        # for classification with unknown ground truth labels, use:
-        # crisp, score = classify_gmlvq( fvec )
-
-        # if used for testing with known test labels (lbl) you can use:
-        # crisp, score, margin, costf = classify_gmlvq( fvec, lbl )
+        m = X.shape[0]
 
         X = np.copy( X )
+        y = np.ones( (1, m) ).T  # fake labels for __compute_costs
 
-        prot    = self.gmlvq_system['protos']         # prototypes
-        lambdaa = self.gmlvq_system['lambda']         # relevance matrix lambda
-        plbl    = self.gmlvq_system['plbl']           # prototype labels
-        mf      = self.gmlvq_system['mean_features']  # mean features from potential z-score
-        st      = self.gmlvq_system['std_features']   # st.dev. from potential z-score transf.
+        w       = self.gmlvq_system['w']
+        lambdaa = self.gmlvq_system['lambda']
+        wlbl    = self.gmlvq_system['wlbl']
+        mf      = self.gmlvq_system['mean_features']
+        st      = self.gmlvq_system['std_features']
 
         omat = sqrtm( lambdaa )  # symmetric matrix square root as one representation of the distance measure
 
-        nfv = X.shape[0]  # number of feature vectors in training set
-
-        if y == 0:                   # ground truth unknown
-            y = np.ones((1, nfv)).T  # fake labels, meaningless
-
         # if z-transformation was applied in training, apply the same here:
         if self.doztr:
-            for i in range( 0, nfv ):
+            for i in range( 0, m ):
                 X[i, :] = (X[i, :] - mf) / st
 
-        # call glvqcosts, crout=crisp labels
-        # score between 0= "class 1 certainly" and 1= "any other class"
-        # margin and costf are meaningful only if lbl is ground truth
-
         # cost function can be computed without penalty term for margins/score
-        costf, crisp, margin, score = self.__compute_costs( X, y, prot, plbl, omat, 0 )
+        _, crisp, _, _ = self.__compute_costs( X, y, w, wlbl, omat, 0 )
 
-        return crisp, score, margin, costf
+        return crisp
 
 
     def __compute_costs( self, X, y, w, wlbl, omega, mu ):
@@ -291,26 +279,26 @@ class CGMLVQ:
         score : distance based "scores"
         """
 
-        nfv = X.shape[0]
-        npp = len( wlbl )
+        m = X.shape[0]
+        c = len( wlbl )
 
         costf = 0
-        marg  = np.zeros( (1,nfv) )
-        score = np.zeros( (1,nfv) )
-        crout = np.zeros( (1,nfv) )
+        marg  = np.zeros( (1, m) )
+        score = np.zeros( (1, m) )
+        crout = np.zeros( (1, m) )
 
         omega = omega / np.sqrt(sum(sum(omega * omega)))  # normalized omat
 
-        for i in range( 0, nfv ):  # loop through examples
+        for i in range( 0, m ):  # loop through examples
 
             Xi = X[i, :]  # actual example
             yi = y[i]     # actual example
 
             # calculate squared distances to all prototypes
-            d = np.empty( (npp, 1) )  # define squared distances
+            d = np.empty( (c, 1) )  # define squared distances
             d[:] = np.nan
 
-            for j in range( 0, npp ):  # distances from all prototypes
+            for j in range( 0, c ):  # distances from all prototypes
                 d[j] = self.__compute_euclid( Xi, w[j, :], omega )
 
             # find the two winning prototypes
@@ -324,7 +312,7 @@ class CGMLVQ:
             jwin = correct[JJ][0]
             kwin = incorrect[KK][0]
 
-            costf = costf + (dJ-dK) / (dJ+dK) / nfv
+            costf = costf + (dJ-dK) / (dJ+dK) / m
 
             marg[0, i] = (dJ-dK) / (dJ+dK)  # gmlvq margin of example i
 
@@ -339,7 +327,7 @@ class CGMLVQ:
 
         # add penalty term
         if mu > 0:
-            costf = costf - mu / 2 * np.log(np.linalg.det(omega @ omega.conj().T)) / nfv
+            costf = costf - mu / 2 * np.log(np.linalg.det(omega @ omega.conj().T)) / m
 
         return costf, crout, marg, score
 
@@ -356,79 +344,76 @@ class CGMLVQ:
         return d
 
 
-    def __do_batchstep( self, X, y, proti, plbl, omegai, etap, etam ):
+    def __do_batchstep( self, X, y, w, wlbl, omega, etap, etam ):
 
         """ Perform a single step of batch gradient descent GMLVQ with given step size for matrix and prototype updates (input parameter) only for one global quadratic omega matrix, potentially diagonal (mode=2)
             optional: null-space correction for full matrix only (mode=1)
 
         Parameters
         ----------
-        X : nvf feature vectors of dim. ndim
+        X : feature vectors
         y : training labels
-        proti : prototypes before the step
-        plbl : prototype labels
-        omegai : global matrix before the step
-        etap,etam : prototype/matrix learning rate
+        w : prototypes before the step
+        wlbl : prototype labels
+        omega : global matrix before the step
+        etap : prototype learning rate
+        etam : matrix learning rate
 
         Returns
         -------
-        prot : prototypes after update
-        omat : omega matrix after update
+        w : prototypes after update
+        omega : omega matrix after update
         """
 
-        ndim = X.shape[1]  # dimension of feature vectors
-        nfv = len(y)        # number of feature vectors (training samples)
-        npt = proti.shape[0]  # number of prototypes
+        m = X.shape[0]
+        n = X.shape[1]
+        c = len( wlbl )
 
-        # omega and lambdaa before step
-        omat = omegai
-        lambdaa = omat.conj().T @ omat
+        lambdaa = omega.conj().T @ omega
 
-        prot = proti  # prototypes before step
+        # initialize change of w and omega
+        chp = 0 * w
+        chm = 0 * omega
 
-        chp = 0 * prot
-        chm = 0 * omat  # initialize change of prot,omega
+        for i in range( 0, m ):  # loop through (sum over) all training examples
 
-        for i in range( 0, nfv ):  # loop through (sum over) all training examples
-
-            fvi = X[i, :]  # actual example
-            lbi = y[i]     # actual example
+            Xi = X[i,:]  # actual example
+            yi = y[i]    # actual example
 
             # calculate squared distances to all prototypes
-            dist = np.empty( (npt, 1) )  # define squared distances
-            dist[:] = np.nan
+            d = np.empty( (c, 1) )  # define squared distances
+            d[:] = np.nan
 
-            for j in range( 0, npt ):  # distances from all prototypes
-                dist[j] = self.__compute_euclid( fvi, prot[j,:], omat )
+            for j in range( 0, c ):  # distances from all prototypes
+                d[j] = self.__compute_euclid( Xi, w[j,:], omega )
 
             # find the two winning prototypes
-            correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
-            incorrect = np.where( np.array([plbl]) != lbi )[1]  # all wrong   prototype indices
+            correct   = np.where( np.array([wlbl]) == yi )[1]  # all correct prototype indices
+            incorrect = np.where( np.array([wlbl]) != yi )[1]  # all wrong   prototype indices
 
-            dJ, JJ = dist[correct].min(0), dist[correct].argmin(0)      # correct winner
-            dK, KK = dist[incorrect].min(0), dist[incorrect].argmin(0)  # wrong winner
+            dJ, JJ = d[correct].min(0), d[correct].argmin(0)      # correct winner
+            dK, KK = d[incorrect].min(0), d[incorrect].argmin(0)  # wrong winner
 
             # winner indices
             jwin = correct[JJ][0]
             kwin = incorrect[KK][0]
 
             # winning prototypes
-            wJ = prot[jwin,:]
-            wK = prot[kwin,:]
+            wJ = w[jwin,:]
+            wK = w[kwin,:]
 
-            # GMLVQ prototype update for one example fvi
-            DJ = np.array([ fvi - wJ ]).T  # displacement vectors
-            DK = np.array([ fvi - wK ]).T  # displacement vectors
-            # for complex valued data, "." has been added for normal transpose
+            # GMLVQ prototype update for one example Xi
+            DJ = np.array([ Xi - wJ ]).T  # displacement vectors
+            DK = np.array([ Xi - wK ]).T  # displacement vectors
 
             norm_factor = (dJ + dK)**2  # denominator of prefactor
 
             dwJ = -(dK/norm_factor) * lambdaa @ DJ  # change of correct winner
             dwK =  (dJ/norm_factor) * lambdaa @ DK  # change of incorrect winner
 
-            # matrix update, single (global) matrix omat for one example
-            f1 = ( dK/norm_factor) * (omat@DJ) @ DJ.conj().T
-            f2 = (-dJ/norm_factor) * (omat@DK) @ DK.conj().T
+            # matrix update, single (global) matrix omega for one example
+            f1 = ( dK/norm_factor) * (omega@DJ) @ DJ.conj().T
+            f2 = (-dJ/norm_factor) * (omega@DK) @ DK.conj().T
 
             # negative gradient update added up over examples
             chp[jwin,:] = chp[jwin,:] - dwJ.conj().T  # correct   winner summed update
@@ -437,42 +422,39 @@ class CGMLVQ:
 
         # singularity control: add derivative of penalty term times mu
         if self.mu > 0:
-            chm = chm + self.mu * np.linalg.pinv( omat.conj().T )
+            chm = chm + self.mu * np.linalg.pinv( omega.conj().T )
 
         # compute normalized gradient updates (length 1)
         # separate nomralization for prototypes and the matrix
         # computation of actual changes, diagonal matrix imposed here if nec.
         n2chw = np.sum( chp.conj() * chp ).real
 
-        if self.mode == 2:                 # if diagonal matrix used only
+        if self.mode == 2:               # if diagonal matrix used only
             chm = np.diag(np.diag(chm))  # reduce to diagonal changes
 
         n2chm = np.sum(np.sum(np.absolute(chm)**2))  # total 'length' of matrix update
 
-        # n2chm = sum(sum(abs(chm).^2));% total 'length' of matrix update
-        # for complex valued data abs has been added
-
         # final, normalized gradient updates after 1 loop through examples
-        prot = prot + etap * chp / np.sqrt(n2chw)
-        omat = omat + etam * chm / np.sqrt(n2chm)
+        w = w + etap * chp / np.sqrt(n2chw)
+        omega = omega + etam * chm / np.sqrt(n2chm)
 
         # if diagonal matrix only
-        if self.mode == 2:                   # probably obsolete as chm diagonal
-            omat = np.diag( np.diag(omat) )  # reduce to diagonal matrix
+        if self.mode == 2:                     # probably obsolete as chm diagonal
+            omega = np.diag( np.diag(omega) )  # reduce to diagonal matrix
 
         #  nullspace correction using Moore Penrose pseudo-inverse
         if self.mode == 1:
-            xvec = np.concatenate((X, prot))                                 # concat. protos and fvecs
-            omat = (omat @ xvec.conj().T) @ np.linalg.pinv( xvec.conj().T )  # corrected omega matrix
+            xvec = np.concatenate((X, w))                                      # concat. protos and fvecs
+            omega = (omega @ xvec.conj().T) @ np.linalg.pinv( xvec.conj().T )  # corrected omega matrix
 
         if self.mode == 3:
-            omat = np.identity( ndim )  # reset to identity regardless of gradients
+            omega = np.identity( n )  # reset to identity regardless of gradients
 
         # normalization of omega, corresponds to Trace(lambda) = 1
-        omat = omat / np.sqrt(np.sum(np.sum(np.absolute(omat)**2)))
+        omega = omega / np.sqrt(np.sum(np.sum(np.absolute(omega)**2)))
 
-        # one full, normalized gradient step performed, return omat and prot
-        return prot, omat
+        # one full, normalized gradient step performed, return omega and w
+        return w, omega
 
 
     def __do_fourier( self, X ):
@@ -493,9 +475,9 @@ class CGMLVQ:
 
     def __do_inversezscore( self, X, mf, st ):
 
-        ndim = X.shape[1]
+        n = X.shape[1]
 
-        for i in range( 0, ndim ):
+        for i in range( 0, n ):
             X[:,i] = X[:,i] * st[0,i] + mf[0,i]
 
         return X
@@ -512,41 +494,35 @@ class CGMLVQ:
         Returns
         -------
         X : z-score transformed feature vectors
-        mf : vector of feauter means used in z-score transformation
-        st : vector of standard deviations in z-score transformation
+        mean : vector of means used in z-score transformation
+        std : vector of standard deviations in z-score transformation
         """
 
-        ndim = X.shape[1]  # dimension ndim of data
+        n = X.shape[1]
 
-        mf = np.zeros( (1, ndim), dtype=np.cdouble )  # initialize vectors mf and st
-        st = np.zeros( (1, ndim) )
+        mean = np.zeros( (1, n), dtype=np.cdouble )
+        std = np.zeros( (1, n) )
 
-        for i in range( 0, ndim ):
-            mf[0,i] = np.mean(X[:,i])               # mean of feature i
-            st[0,i] = np.std(X[:,i], ddof=1)        # st.dev. of feature i
-            X[:, i] = (X[:,i] - mf[0,i]) / st[0,i]  # transformed feature
+        for i in range( 0, n ):
+            mean[0,i] = np.mean(X[:,i])
+            std[0,i] = np.std(X[:,i], ddof=1)
+            X[:, i] = (X[:,i] - mean[0,i]) / std[0,i]
 
-        return X, mf, st
+        return X, mean, std
 
 
     def __run_single( self, X, y ):
 
-        etam0, etap0, decfac, incfac, ncop = self.__set_parameters( X )
+        etam, etap, decfac, incfac, ncop = self.__set_parameters( X )
 
-        etam = etam0  # initial step size matrix
-        etap = etap0  # intitial step size prototypes
+        y, wlbl = self.__check_arguments( X, y, ncop )
 
-        y, plbl = self.__check_arguments( X, y, ncop )
+        m = X.shape[0]
+        c = len( np.unique(wlbl) )
 
-        nfv = X.shape[0]               # number of feature vectors in training set
-        ncls = len( np.unique(plbl) )  # number of classes
-
-        te = np.zeros( (self.totalsteps+1, 1) )   # define total error
-        cf = np.zeros( (self.totalsteps+1, 1) )   # define cost function
-        cw = np.zeros( (self.totalsteps+1, ncls) )  # define class-wise errors
-
-        stepsizem = np.zeros( (self.totalsteps+1, 1) )  # define stepsize matrix in the course of training
-        stepsizep = np.zeros( (self.totalsteps+1, 1) )  # define stepsize prototypes in the course ...
+        te = np.zeros( (self.totalsteps+1, 1) )  # define total error
+        cf = np.zeros( (self.totalsteps+1, 1) )  # define cost function
+        cw = np.zeros( (self.totalsteps+1, c) )  # define class-wise errors
 
         if self.doztr:
             X, mf, st = self.__do_zscore( X.copy() )  # perform z-score transformation
@@ -554,37 +530,34 @@ class CGMLVQ:
             _, mf, st = self.__do_zscore( X.copy() )  # evaluate but don't apply
 
         # initialize prototypes and omega
-        prot, om = self.__set_initial( X, y, plbl )
+        w, omega = self.__set_initial( X, y, wlbl )
 
-        # copies of prototypes and omegas stored in protcop and omcop
-        # for the adaptive step size procedure
-        protcop = np.zeros( (prot.shape[1], ncop, prot.shape[0], ), dtype=np.cdouble )
-        omcop   = np.zeros( (om.shape[1], ncop, om.shape[0]), dtype=np.cdouble )
+        # copies of prototypes and omegas stored in w_copy and omega_copy for the adaptive step size procedure
+        w_copy = np.zeros( (w.shape[1], ncop, w.shape[0], ), dtype=np.cdouble )
+        omega_copy = np.zeros( (omega.shape[1], ncop, omega.shape[0]), dtype=np.cdouble )
 
         # calculate initial values for learning curves
-        costf, _, marg, _ = self.__compute_costs( X, y, prot, plbl, om, self.mu )
-        te[0] = np.sum(marg>0) / nfv
+        costf, _, marg, _ = self.__compute_costs( X, y, w, wlbl, omega, self.mu )
+
+        te[0] = np.sum(marg>0) / m
         cf[0] = costf
-        stepsizem[0] = etam
-        stepsizep[0] = etap
 
         # perform the first ncop init steps of gradient descent
         for i in range( 0, ncop ):
 
             # actual batch gradient step
-            prot, om = self.__do_batchstep( X, y, prot, plbl, om, etap, etam )
-            protcop[:,i,:] = prot.T
-            omcop[:,i,:] = om.T
+            w, omega = self.__do_batchstep( X, y, w, wlbl, omega, etap, etam )
+            w_copy[:,i,:] = w.T
+            omega_copy[:,i,:] = omega.T
 
             # determine and save training set performances
-            costf, _, marg, _ = self.__compute_costs( X, y, prot, plbl, om, self.mu )
-            te[i+1] = np.sum(marg>0) / nfv
+            costf, _, marg, _ = self.__compute_costs( X, y, w, wlbl, omega, self.mu )
+
+            te[i+1] = np.sum(marg>0) / m
             cf[i+1] = costf
-            stepsizem[i+1] = etam
-            stepsizep[i+1] = etap
 
             # compute training set errors and cost function values
-            for j in range( 1, ncls+1 ):  # starting with 1 because of the labels
+            for j in range( 1, c+1 ):  # starting with 1 because of the labels
                 # compute class-wise errors (positive margin = error)
                 cw[i+1, j-1] = np.sum(marg[0, np.where(y == j)[0]] > 0) / np.sum(y == j)
 
@@ -593,20 +566,20 @@ class CGMLVQ:
 
             # calculate mean positions over latest steps
             # note: normalization does not change cost function value but is done here for consistency
-            protmean = np.mean( protcop, 1 ).T
-            ommean = np.mean( omcop, 1 ).T
-            ommean = ommean / np.sqrt(np.sum(np.sum(np.abs(ommean)**2)))
+            w_mean = np.mean( w_copy, 1 ).T
+            omega_mean = np.mean( omega_copy, 1 ).T
+            omega_mean = omega_mean / np.sqrt(np.sum(np.sum(np.abs(omega_mean)**2)))
 
-            # compute cost functions for mean prototypes, mean matrix and both
-            costmp, _, _, _ = self.__compute_costs( X, y, protmean, plbl, om,     0       )
-            costmm, _, _, _ = self.__compute_costs( X, y, prot,     plbl, ommean, self.mu )
+            # compute cost functions for mean prototypes and mean matrix
+            costmp, _, _, _ = self.__compute_costs( X, y, w_mean, wlbl, omega,      0       )
+            costmm, _, _, _ = self.__compute_costs( X, y, w,      wlbl, omega_mean, self.mu )
 
             # remember old positions for Papari procedure
-            ombefore = om.copy()
-            protbefore = prot.copy()
+            ombefore = omega.copy()
+            protbefore = w.copy()
 
             # perform next step and compute costs etc.
-            prot, om = self.__do_batchstep( X, y, prot, plbl, om, etap, etam )
+            w, omega = self.__do_batchstep( X, y, w, wlbl, omega, etap, etam )
 
             # by default, step sizes are increased in every step
             etam = etam * incfac  # (small) increase of step sizes
@@ -614,56 +587,49 @@ class CGMLVQ:
 
             # costfunction values to compare with for Papari procedure
             # evaluated w.r.t. changing only matrix or prototype
-            costfp, _, _, _ = self.__compute_costs( X, y, prot,       plbl, ombefore, 0       )
-            costfm, _, _, _ = self.__compute_costs( X, y, protbefore, plbl, om,       self.mu )
+            costfp, _, _, _ = self.__compute_costs( X, y, w,          wlbl, ombefore, 0       )
+            costfm, _, _, _ = self.__compute_costs( X, y, protbefore, wlbl, omega,    self.mu )
 
             # heuristic extension of Papari procedure
             # treats matrix and prototype step sizes separately
             if costmp <= costfp:  # decrease prototype step size and jump
                 # to mean prototypes
                 etap = etap / decfac
-                prot = protmean
+                w = w_mean
 
             if costmm <= costfm:  # decrease matrix step size and jump
                 # to mean matrix
                 etam = etam / decfac
-                om = ommean
+                omega = omega_mean
 
             # update the copies of the latest steps, shift stack of stored configs.
             # plenty of room for improvement, I guess ...
             for iicop in range( 0, ncop-1 ):
-                protcop[:,iicop,:] = protcop[:,iicop+1,:]
-                omcop[:,iicop,:] = omcop[:,iicop+1,:]
+                w_copy[:,iicop,:] = w_copy[:,iicop+1,:]
+                omega_copy[:,iicop,:] = omega_copy[:,iicop+1,:]
 
-            protcop[:,ncop-1,:] = prot.T
-            omcop[:,ncop-1,:] = om.T
+            w_copy[:,ncop-1,:] = w.T
+            omega_copy[:,ncop-1,:] = omega.T
 
             # determine training and test set performances
             # here: costfunction without penalty term!
-            costf0, _, marg, _ = self.__compute_costs( X, y, prot, plbl, om, 0 )
+            costf0, _, marg, _ = self.__compute_costs( X, y, w, wlbl, omega, 0 )
 
             # compute total and class-wise training set errors
-            te[i+1] = np.sum(marg>0) / nfv
+            te[i+1] = np.sum(marg>0) / m
             cf[i+1] = costf0
 
-            for j in range( 1, ncls+1):
+            for j in range( 1, c+1 ):
                 cw[i+1, j-1] = np.sum(marg[0, np.where(y == j)[0]] > 0) / np.sum(y == j)
 
-            stepsizem[i+1] = etam
-            stepsizep[i+1] = etap
+        lambdaa = omega.conj().T @ omega  # actual relevance matrix
 
-        # if the data was z transformed then also save the inverse prototypes,
-        # actually it is not necessary since the mf and st are returned.
-        if self.doztr:
-            protsInv = self.__do_inversezscore( prot.copy(), mf, st )
-        else:
-            protsInv = prot
+        # if the data was z transformed: the inverse prototypes
+        # if self.doztr:
+        #     wInverse = self.__do_inversezscore( w.copy(), mf, st )
 
-        lambdaa = om.conj().T @ om  # actual relevance matrix
-
-        self.gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
+        self.gmlvq_system = { 'w': w, 'lambda': lambdaa, 'wlbl': wlbl, 'mean_features': mf, 'std_features': st }
         self.training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw }
-        self.param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop }
 
 
     def __set_initial( self, X, y, wlbl ):
@@ -682,12 +648,12 @@ class CGMLVQ:
         omega : omega matrix
         """
 
-        ndim = X.shape[1]     # dimension of feature vectors
-        nprots = len( wlbl )  # total number of prototypes
+        n = X.shape[1]
+        c = len( wlbl )
 
-        w = np.zeros( (nprots, ndim), dtype=np.cdouble )
+        w = np.zeros( (c, n), dtype=np.cdouble )
 
-        for i in range( 0, nprots ):  # compute class-conditional means
+        for i in range( 0, c ):  # compute class-conditional means
             w[i,:] = np.mean( X[np.where(y == wlbl[i]), :][0], axis=0 )
 
         # reproducible random numbers
@@ -697,10 +663,10 @@ class CGMLVQ:
         w = w * (0.99 + 0.02 * np.random.rand(w.shape[1], w.shape[0]).T)
 
         # (global) matrix initialization, identity or random
-        omega = np.identity( ndim )  # works for all values of mode if rndinit == 0
+        omega = np.identity( n )  # works for all values of mode if rndinit == 0
 
         if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
-            omega = np.random.rand( ndim, ndim ).T - 0.5
+            omega = np.random.rand( n, n ).T - 0.5
             omega = omega.conj().T @ omega  # square symmetric
             # matrix of uniform random numbers
 
@@ -720,32 +686,32 @@ class CGMLVQ:
         Parameters
         ----------
         X : feature vectors
+
+        Returns
+        -------
+        etam : initital step size for diagonal matrix updates
+        etap : initital step size for prototype update
+        decfac : step size factor (decrease) for Papari steps
+        incfac : step size factor (increase) for all steps
+        ncop : number of waypoints stored and averaged
         """
 
-        nfv = X.shape[0]
-        ndim = X.shape[1]
-
         # parameters of stepsize adaptation
+
         if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
-            etam = 2  # suggestion: 2
-            etap = 1  # suggestion: 1
+            etam = 2
+            etap = 1
 
         elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
-            etam = 0.2  # initital step size for diagonal matrix updates
-            etap = 0.1  # initital step size for prototype update
+            etam = 0.2
+            etap = 0.1
 
         elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
             etam = 0
             etap = 1
 
-        decfac = 1.5  # step size factor (decrease) for Papari steps
-        incfac = 1.1  # step size factor (increase) for all steps
-        ncop = 5      # number of waypoints stored and averaged
-
-        if nfv <= ndim and self.mode == 0:
-            print('dim. > # of examples, null-space correction recommended')
-
-        if not self.doztr and self.mode < 3:
-            print('rescale relevances for proper interpretation')
+        decfac = 1.5
+        incfac = 1.1
+        ncop = 5
 
         return etam, etap, decfac, incfac, ncop

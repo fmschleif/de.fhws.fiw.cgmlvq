@@ -44,7 +44,7 @@ class Test_CGMLVQ( unittest.TestCase ):
         cgmlvq = CGMLVQ()
         cgmlvq._CGMLVQ__run_single( self.X_train, self.y_train )
 
-        crisp, _, _, _ = cgmlvq._CGMLVQ__classify_gmlvq( self.X_test )
+        crisp = cgmlvq._CGMLVQ__classify_gmlvq( self.X_test )
 
         np.testing.assert_array_almost_equal( crisp, self.load_data('test_classify_gmlvq_doztr_crisp.csv') )
 
@@ -52,7 +52,7 @@ class Test_CGMLVQ( unittest.TestCase ):
         cgmlvq.set_params( doztr=False )
         cgmlvq._CGMLVQ__run_single( self.X_train, self.y_train )
 
-        crisp, _, _, _ = cgmlvq._CGMLVQ__classify_gmlvq( self.X_test )
+        crisp = cgmlvq._CGMLVQ__classify_gmlvq( self.X_test )
 
         np.testing.assert_array_almost_equal( crisp, self.load_data('test_classify_gmlvq_crisp.csv') )
 
@@ -174,21 +174,23 @@ class Test_CGMLVQ( unittest.TestCase ):
 
         cgmlvq._CGMLVQ__run_single( self.X_train, self.y_train )
 
-        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['protos'], self.load_data('test_run_single_doztr_protos.csv') )
-        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['protosInv'], self.load_data('test_run_single_doztr_protosInv.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['w'], self.load_data('test_run_single_doztr_protos.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['lambda'], self.load_data('test_run_single_doztr_lambda.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['wlbl'], self.load_data('test_run_single_doztr_plbl.csv')[0] )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['mean_features'], self.load_data('test_run_single_doztr_mean_features.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['std_features'], self.load_data('test_run_single_doztr_std_features.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.training_curves['costs'], self.load_data('test_run_single_doztr_costs.csv') )
 
 
         cgmlvq.set_params( doztr=False )
         cgmlvq._CGMLVQ__run_single( self.X_train, self.y_train )
 
-        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['protos'], self.load_data('test_run_single_protos.csv') )
-        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['protosInv'], self.load_data('test_run_single_protosInv.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['w'], self.load_data('test_run_single_protos.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['lambda'], self.load_data('test_run_single_lambda.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['wlbl'], self.load_data('test_run_single_plbl.csv')[0] )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['mean_features'], self.load_data('test_run_single_mean_features.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['std_features'], self.load_data('test_run_single_std_features.csv') )
+        np.testing.assert_array_almost_equal( cgmlvq.training_curves['costs'], self.load_data('test_run_single_costs.csv') )
 
 
     def test_set_initial( self ):

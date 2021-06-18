@@ -189,10 +189,12 @@ my_write( 'test_set_initial_mode3_omi.csv', omi );
 % run_single
 % ==========
 
-[gmlvq_system, ~, ~] = run_single( X_train, y_train, 50, unique(y_train)' );
+[gmlvq_system, training_curves, ~] = run_single( X_train, y_train, 50, unique(y_train)' );
 
 my_write( 'test_run_single_doztr_protos.csv', gmlvq_system.protos );
 my_write( 'test_run_single_doztr_protosInv.csv', gmlvq_system.protosInv );
 my_write( 'test_run_single_doztr_lambda.csv', gmlvq_system.lambda );
+my_write( 'test_run_single_doztr_plbl.csv', gmlvq_system.plbl );
 my_write( 'test_run_single_doztr_mean_features.csv', gmlvq_system.mean_features );
 my_write( 'test_run_single_doztr_std_features.csv', gmlvq_system.std_features );
+my_write( 'test_run_single_doztr_costs.csv', training_curves.costs );
