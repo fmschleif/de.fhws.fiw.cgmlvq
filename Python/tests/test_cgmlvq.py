@@ -83,6 +83,19 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( score, self.load_data('test_compute_costs_mu1_score.csv')    )
 
 
+    def test_compute_euclid( self ):
+
+        cgmlvq = CGMLVQ()
+
+        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+
+        omat = omi / np.sqrt(sum(sum(omi*omi)))
+
+        D = cgmlvq._CGMLVQ__compute_euclid( self.X_train[0,:], proti[0,:], omat )
+
+        np.testing.assert_array_almost_equal( D, self.load_data('test_euclid_D.csv') )
+
+
     def test_do_batchstep( self ):
 
         cgmlvq = CGMLVQ()
@@ -124,6 +137,15 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( omat, self.load_data('test_do_batchstep_mode3_omat.csv') )
 
 
+    def test_do_fourier( self ):
+
+        cgmlvq = CGMLVQ()
+
+        Y = cgmlvq._CGMLVQ__do_fourier( self.X_train )
+
+        np.testing.assert_array_almost_equal( Y, self.load_data('test_fourier_Y.csv') )
+
+
     def test_do_inversezscore( self ):
 
         cgmlvq = CGMLVQ()
@@ -144,47 +166,6 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( fvec, self.load_data('test_do_zscore_fvec.csv') )
         np.testing.assert_array_almost_equal( mf, self.load_data('test_do_zscore_mf.csv') )
         np.testing.assert_array_almost_equal( st, self.load_data('test_do_zscore_st.csv') )
-
-
-    def test_euclid( self ):
-
-        cgmlvq = CGMLVQ()
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        omat = omi / np.sqrt(sum(sum(omi*omi)))
-
-        D = cgmlvq._CGMLVQ__euclid( self.X_train[0,:], proti[0,:], omat )
-
-        np.testing.assert_array_almost_equal( D, self.load_data('test_euclid_D.csv') )
-
-
-    def test_fourier( self ):
-
-        cgmlvq = CGMLVQ()
-
-        Y = cgmlvq._CGMLVQ__fourier( self.X_train )
-
-        np.testing.assert_array_almost_equal( Y, self.load_data('test_fourier_Y.csv') )
-
-
-    def test_set_initial( self ):
-
-        cgmlvq = CGMLVQ()
-        cgmlvq.set_params( mode=2, rndinit=True )
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_proti.csv') )
-        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_omi.csv') )
-
-
-        cgmlvq.set_params( mode=3, rndinit=False )
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_mode3_proti.csv') )
-        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_mode3_omi.csv') )
 
 
     def test_run_single( self ):
@@ -208,6 +189,25 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['lambda'], self.load_data('test_run_single_lambda.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['mean_features'], self.load_data('test_run_single_mean_features.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['std_features'], self.load_data('test_run_single_std_features.csv') )
+
+
+    def test_set_initial( self ):
+
+        cgmlvq = CGMLVQ()
+        cgmlvq.set_params( mode=2, rndinit=True )
+
+        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+
+        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_proti.csv') )
+        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_omi.csv') )
+
+
+        cgmlvq.set_params( mode=3, rndinit=False )
+
+        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+
+        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_mode3_proti.csv') )
+        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_mode3_omi.csv') )
 
 
 if "__main__" == __name__:

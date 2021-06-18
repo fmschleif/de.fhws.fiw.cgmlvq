@@ -78,9 +78,22 @@ class CGMLVQ:
         y = np.array( y, dtype=int )
 
         if self.coefficients > 0:
-            X = self.__fourier( X )
+            X = self.__do_fourier( X )
 
         self.__run_single( X, y )
+
+
+    def get_params( self ):
+
+        """ Get parameters for this estimator.
+
+        Returns
+        -------
+        params : dict
+            Parameter names mapped to their values.
+        """
+
+        return { 'coefficients': self.coefficients, 'totalsteps': self.totalsteps, 'doztr': self.doztr, 'mode': self.mode, 'mu': self.mu, 'rndinit': self.rndinit }
 
 
     def predict( self, X ):
@@ -102,7 +115,7 @@ class CGMLVQ:
         X = np.array( X, dtype=np.cdouble )
 
         if self.coefficients > 0:
-            X = self.__fourier( X )
+            X = self.__do_fourier( X )
 
         crisp, _, _, _ = self.__classify_gmlvq( X )
 
@@ -156,19 +169,6 @@ class CGMLVQ:
                 self.rndinit = params['rndinit']
             else:
                 raise ValueError( 'Invalid parameter rndinit. Check the list of available parameters!' )
-
-
-    def get_params( self ):
-
-        """ Get parameters for this estimator.
-
-        Returns
-        -------
-        params : dict
-            Parameter names mapped to their values.
-        """
-
-        return { 'coefficients': self.coefficients, 'totalsteps': self.totalsteps, 'doztr': self.doztr, 'mode': self.mode, 'mu': self.mu, 'rndinit': self.rndinit }
 
 
     def __check_arguments( self, X, y, ncop ):
@@ -311,7 +311,7 @@ class CGMLVQ:
             d[:] = np.nan
 
             for j in range( 0, npp ):  # distances from all prototypes
-                d[j] = self.__euclid( Xi, w[j, :], omega )
+                d[j] = self.__compute_euclid( Xi, w[j, :], omega )
 
             # find the two winning prototypes
             correct   = np.where( np.array([wlbl]) == yi )[1]  # all correct prototype indices
@@ -342,6 +342,18 @@ class CGMLVQ:
             costf = costf - mu / 2 * np.log(np.linalg.det(omega @ omega.conj().T)) / nfv
 
         return costf, crout, marg, score
+
+
+    def __compute_euclid( self, X, w, omega ):
+
+        # d = (X - w).conj().T @ omega.conj().T @ omega @ (X - w)
+        # d = d.real
+
+        # simpler form, which is also cheaper to compute
+        d = np.linalg.norm(omega @ np.array([X - w]).T)**2
+        d = d.real
+
+        return d
 
 
     def __do_batchstep( self, X, y, proti, plbl, omegai, etap, etam ):
@@ -387,7 +399,7 @@ class CGMLVQ:
             dist[:] = np.nan
 
             for j in range( 0, npt ):  # distances from all prototypes
-                dist[j] = self.__euclid( fvi, prot[j,:], omat )
+                dist[j] = self.__compute_euclid( fvi, prot[j,:], omat )
 
             # find the two winning prototypes
             correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
@@ -463,6 +475,22 @@ class CGMLVQ:
         return prot, omat
 
 
+    def __do_fourier( self, X ):
+
+        """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
+        """
+
+        Y = fft( X )
+
+        enabled = np.zeros( Y.shape[1] )
+
+        enabled[ 0 : self.coefficients+1 ] = 1
+
+        Y = Y[:, enabled==1]
+
+        return Y
+
+
     def __do_inversezscore( self, X, mf, st ):
 
         ndim = X.shape[1]
@@ -499,119 +527,6 @@ class CGMLVQ:
             X[:, i] = (X[:,i] - mf[0,i]) / st[0,i]  # transformed feature
 
         return X, mf, st
-
-
-    def __euclid( self, X, w, omega ):
-
-        # d = (X - w).conj().T @ omega.conj().T @ omega @ (X - w)
-        # d = d.real
-
-        # simpler form, which is also cheaper to compute
-        d = np.linalg.norm(omega @ np.array([X - w]).T)**2
-        d = d.real
-
-        return d
-
-
-    def __fourier( self, X ):
-
-        """ Wrapper around "fft" to obtain Fourier series of "x" truncated at "r" coefficients. Ignores the symmetric part of the spectrum.
-        """
-
-        Y = fft( X )
-
-        enabled = np.zeros( Y.shape[1] )
-
-        enabled[ 0 : self.coefficients+1 ] = 1
-
-        Y = Y[:, enabled==1]
-
-        return Y
-
-
-    def __set_initial( self, X, y, wlbl ):
-
-        """ Initialization of prototypes close to class conditional means small random displacements to break ties
-
-        Parameters
-        ----------
-        X : feature vectors
-        y : data labels
-        wlbl : prototype labels
-
-        Returns
-        -------
-        w : prototypes matrix
-        omega : omega matrix
-        """
-
-        ndim = X.shape[1]     # dimension of feature vectors
-        nprots = len( wlbl )  # total number of prototypes
-
-        w = np.zeros( (nprots, ndim), dtype=np.cdouble )
-
-        for i in range( 0, nprots ):  # compute class-conditional means
-            w[i, :] = np.mean( X[np.where(y == wlbl[i]), :][0], axis=0 )
-
-        # reproducible random numbers
-        np.random.seed( 291024 )
-
-        # displace randomly from class-conditional means
-        w = w * (0.99 + 0.02 * np.random.rand(w.shape[1], w.shape[0]).T)
-
-        # (global) matrix initialization, identity or random
-        omega = np.identity( ndim )  # works for all values of mode if rndinit == 0
-
-        if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
-            omega = np.random.rand( ndim, ndim ).T - 0.5
-            omega = omega.conj().T @ omega  # square symmetric
-            # matrix of uniform random numbers
-
-        if self.mode == 2:
-            omega = np.diag(np.diag(omega))  # restrict to diagonal matrix
-
-        omega = omega / np.sqrt(sum(sum(abs(omega)**2)))
-
-        return w, omega
-
-
-    def __set_parameters( self, X ):
-
-        """ Set general parameters
-            Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
-
-        Parameters
-        ----------
-        X : feature vectors
-        """
-
-        nfv = X.shape[0]
-        ndim = X.shape[1]
-
-        # parameters of stepsize adaptation
-        if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
-            etam = 2  # suggestion: 2
-            etap = 1  # suggestion: 1
-
-        elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
-            etam = 0.2  # initital step size for diagonal matrix updates
-            etap = 0.1  # initital step size for prototype update
-
-        elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
-            etam = 0
-            etap = 1
-
-        decfac = 1.5  # step size factor (decrease) for Papari steps
-        incfac = 1.1  # step size factor (increase) for all steps
-        ncop = 5      # number of waypoints stored and averaged
-
-        if nfv <= ndim and self.mode == 0:
-            print('dim. > # of examples, null-space correction recommended')
-
-        if not self.doztr and self.mode < 3:
-            print('rescale relevances for proper interpretation')
-
-        return etam, etap, decfac, incfac, ncop
 
 
     def __run_single( self, X, y ):
@@ -749,3 +664,88 @@ class CGMLVQ:
         self.gmlvq_system = { 'protos': prot, 'protosInv': protsInv, 'lambda': lambdaa, 'plbl': plbl, 'mean_features': mf, 'std_features': st }
         self.training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw }
         self.param_set = { 'etam0': etam0, 'etap0': etap0, 'etamfin': etam, 'etapfin': etap, 'decfac': decfac, 'infac': incfac, 'ncop': ncop }
+
+
+    def __set_initial( self, X, y, wlbl ):
+
+        """ Initialization of prototypes close to class conditional means small random displacements to break ties
+
+        Parameters
+        ----------
+        X : feature vectors
+        y : data labels
+        wlbl : prototype labels
+
+        Returns
+        -------
+        w : prototypes matrix
+        omega : omega matrix
+        """
+
+        ndim = X.shape[1]     # dimension of feature vectors
+        nprots = len( wlbl )  # total number of prototypes
+
+        w = np.zeros( (nprots, ndim), dtype=np.cdouble )
+
+        for i in range( 0, nprots ):  # compute class-conditional means
+            w[i,:] = np.mean( X[np.where(y == wlbl[i]), :][0], axis=0 )
+
+        # reproducible random numbers
+        np.random.seed( 291024 )
+
+        # displace randomly from class-conditional means
+        w = w * (0.99 + 0.02 * np.random.rand(w.shape[1], w.shape[0]).T)
+
+        # (global) matrix initialization, identity or random
+        omega = np.identity( ndim )  # works for all values of mode if rndinit == 0
+
+        if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
+            omega = np.random.rand( ndim, ndim ).T - 0.5
+            omega = omega.conj().T @ omega  # square symmetric
+            # matrix of uniform random numbers
+
+        if self.mode == 2:
+            omega = np.diag(np.diag(omega))  # restrict to diagonal matrix
+
+        omega = omega / np.sqrt(sum(sum(abs(omega)**2)))
+
+        return w, omega
+
+
+    def __set_parameters( self, X ):
+
+        """ Set general parameters
+            Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
+
+        Parameters
+        ----------
+        X : feature vectors
+        """
+
+        nfv = X.shape[0]
+        ndim = X.shape[1]
+
+        # parameters of stepsize adaptation
+        if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
+            etam = 2  # suggestion: 2
+            etap = 1  # suggestion: 1
+
+        elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
+            etam = 0.2  # initital step size for diagonal matrix updates
+            etap = 0.1  # initital step size for prototype update
+
+        elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
+            etam = 0
+            etap = 1
+
+        decfac = 1.5  # step size factor (decrease) for Papari steps
+        incfac = 1.1  # step size factor (increase) for all steps
+        ncop = 5      # number of waypoints stored and averaged
+
+        if nfv <= ndim and self.mode == 0:
+            print('dim. > # of examples, null-space correction recommended')
+
+        if not self.doztr and self.mode < 3:
+            print('rescale relevances for proper interpretation')
+
+        return etam, etap, decfac, incfac, ncop
