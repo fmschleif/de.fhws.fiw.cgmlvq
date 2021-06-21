@@ -511,9 +511,94 @@ class CGMLVQ:
         return X, mean, std
 
 
+    def __get_initial( self, X, y, wlbl ):
+
+        """ Initialization of prototypes close to class conditional means small random displacements to break ties
+
+        Parameters
+        ----------
+        X : feature vectors
+        y : data labels
+        wlbl : prototype labels
+
+        Returns
+        -------
+        w : prototypes matrix
+        omega : omega matrix
+        """
+
+        n = X.shape[1]
+        c = len( wlbl )
+
+        w = np.zeros( (c, n), dtype=np.cdouble )
+
+        for i in range( 0, c ):  # compute class-conditional means
+            w[i,:] = np.mean( X[np.where(y == wlbl[i]), :][0], axis=0 )
+
+        # reproducible random numbers
+        np.random.seed( 291024 )
+
+        # displace randomly from class-conditional means
+        w = w * (0.99 + 0.02 * np.random.rand(w.shape[1], w.shape[0]).T)
+
+        # (global) matrix initialization, identity or random
+        omega = np.identity( n )  # works for all values of mode if rndinit == 0
+
+        if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
+            omega = np.random.rand( n, n ).T - 0.5
+            omega = omega.conj().T @ omega  # square symmetric
+            # matrix of uniform random numbers
+
+        if self.mode == 2:
+            omega = np.diag(np.diag(omega))  # restrict to diagonal matrix
+
+        omega = omega / np.sqrt(sum(sum(abs(omega)**2)))
+
+        return w, omega
+
+
+    def __get_parameters( self, X ):
+
+        """ Set general parameters
+            Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
+
+        Parameters
+        ----------
+        X : feature vectors
+
+        Returns
+        -------
+        etam : initital step size for diagonal matrix updates
+        etap : initital step size for prototype update
+        decfac : step size factor (decrease) for Papari steps
+        incfac : step size factor (increase) for all steps
+        ncop : number of waypoints stored and averaged
+        """
+
+        # parameters of stepsize adaptation
+
+        if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
+            etam = 2
+            etap = 1
+
+        elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
+            etam = 0.2
+            etap = 0.1
+
+        elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
+            etam = 0
+            etap = 1
+
+        decfac = 1.5
+        incfac = 1.1
+        ncop = 5
+
+        return etam, etap, decfac, incfac, ncop
+
+
     def __run_single( self, X, y ):
 
-        etam, etap, decfac, incfac, ncop = self.__set_parameters( X )
+        etam, etap, decfac, incfac, ncop = self.__get_parameters( X )
 
         y, wlbl = self.__check_arguments( X, y, ncop )
 
@@ -529,8 +614,7 @@ class CGMLVQ:
         else:
             _, mf, st = self.__do_zscore( X.copy() )  # evaluate but don't apply
 
-        # initialize prototypes and omega
-        w, omega = self.__set_initial( X, y, wlbl )
+        w, omega = self.__get_initial( X, y, wlbl )
 
         # copies of prototypes and omegas stored in w_copy and omega_copy for the adaptive step size procedure
         w_copy = np.zeros( (w.shape[1], ncop, w.shape[0], ), dtype=np.cdouble )
@@ -630,88 +714,3 @@ class CGMLVQ:
 
         self.gmlvq_system = { 'w': w, 'lambda': lambdaa, 'wlbl': wlbl, 'mean_features': mf, 'std_features': st }
         self.training_curves = { 'costs': cf, 'train_error': te, 'class_wise': cw }
-
-
-    def __set_initial( self, X, y, wlbl ):
-
-        """ Initialization of prototypes close to class conditional means small random displacements to break ties
-
-        Parameters
-        ----------
-        X : feature vectors
-        y : data labels
-        wlbl : prototype labels
-
-        Returns
-        -------
-        w : prototypes matrix
-        omega : omega matrix
-        """
-
-        n = X.shape[1]
-        c = len( wlbl )
-
-        w = np.zeros( (c, n), dtype=np.cdouble )
-
-        for i in range( 0, c ):  # compute class-conditional means
-            w[i,:] = np.mean( X[np.where(y == wlbl[i]), :][0], axis=0 )
-
-        # reproducible random numbers
-        np.random.seed( 291024 )
-
-        # displace randomly from class-conditional means
-        w = w * (0.99 + 0.02 * np.random.rand(w.shape[1], w.shape[0]).T)
-
-        # (global) matrix initialization, identity or random
-        omega = np.identity( n )  # works for all values of mode if rndinit == 0
-
-        if self.mode != 3 and self.rndinit:  # does not apply for mode==3 (GLVQ)
-            omega = np.random.rand( n, n ).T - 0.5
-            omega = omega.conj().T @ omega  # square symmetric
-            # matrix of uniform random numbers
-
-        if self.mode == 2:
-            omega = np.diag(np.diag(omega))  # restrict to diagonal matrix
-
-        omega = omega / np.sqrt(sum(sum(abs(omega)**2)))
-
-        return w, omega
-
-
-    def __set_parameters( self, X ):
-
-        """ Set general parameters
-            Set initial step sizes and control parameters of modified procedure based on [Papari, Bunte, Biehl]
-
-        Parameters
-        ----------
-        X : feature vectors
-
-        Returns
-        -------
-        etam : initital step size for diagonal matrix updates
-        etap : initital step size for prototype update
-        decfac : step size factor (decrease) for Papari steps
-        incfac : step size factor (increase) for all steps
-        ncop : number of waypoints stored and averaged
-        """
-
-        # parameters of stepsize adaptation
-
-        if self.mode < 2:  # full matrix updates with (0) or w/o (1) null space correction
-            etam = 2
-            etap = 1
-
-        elif self.mode == 2:  # diagonal relevances only, DISCOURAGED
-            etam = 0.2
-            etap = 0.1
-
-        elif self.mode == 3:  # GLVQ, equivalent to Euclidean distance
-            etam = 0
-            etap = 1
-
-        decfac = 1.5
-        incfac = 1.1
-        ncop = 5
-
-        return etam, etap, decfac, incfac, ncop

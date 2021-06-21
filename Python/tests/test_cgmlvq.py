@@ -61,7 +61,7 @@ class Test_CGMLVQ( unittest.TestCase ):
 
         cgmlvq = CGMLVQ()
 
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
 
         costf, crout, marg, score = cgmlvq._CGMLVQ__compute_costs( self.X_train, self.y_train, proti, np.unique(self.y_train), omi, 0 )
 
@@ -73,7 +73,7 @@ class Test_CGMLVQ( unittest.TestCase ):
 
         cgmlvq.set_params( mu=1 )
 
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
 
         costf, crout, marg, score = cgmlvq._CGMLVQ__compute_costs( self.X_train, self.y_train, proti, np.unique(self.y_train), omi, 1 )
 
@@ -87,7 +87,7 @@ class Test_CGMLVQ( unittest.TestCase ):
 
         cgmlvq = CGMLVQ()
 
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
 
         omat = omi / np.sqrt(sum(sum(omi*omi)))
 
@@ -100,9 +100,9 @@ class Test_CGMLVQ( unittest.TestCase ):
 
         cgmlvq = CGMLVQ()
 
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
 
-        etam, etap, _, _, _ = cgmlvq._CGMLVQ__set_parameters( self.X_train )
+        etam, etap, _, _, _ = cgmlvq._CGMLVQ__get_parameters( self.X_train )
 
 
         cgmlvq.set_params( mode=0, mu=1 )
@@ -168,6 +168,25 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( st, self.load_data('test_do_zscore_st.csv') )
 
 
+    def test_get_initial( self ):
+
+        cgmlvq = CGMLVQ()
+        cgmlvq.set_params( mode=2, rndinit=True )
+
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+
+        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_proti.csv') )
+        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_omi.csv') )
+
+
+        cgmlvq.set_params( mode=3, rndinit=False )
+
+        proti, omi = cgmlvq._CGMLVQ__get_initial( self.X_train, self.y_train, np.unique(self.y_train) )
+
+        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_mode3_proti.csv') )
+        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_mode3_omi.csv') )
+
+
     def test_run_single( self ):
 
         cgmlvq = CGMLVQ()
@@ -191,25 +210,6 @@ class Test_CGMLVQ( unittest.TestCase ):
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['mean_features'], self.load_data('test_run_single_mean_features.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.gmlvq_system['std_features'], self.load_data('test_run_single_std_features.csv') )
         np.testing.assert_array_almost_equal( cgmlvq.training_curves['costs'], self.load_data('test_run_single_costs.csv') )
-
-
-    def test_set_initial( self ):
-
-        cgmlvq = CGMLVQ()
-        cgmlvq.set_params( mode=2, rndinit=True )
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_proti.csv') )
-        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_omi.csv') )
-
-
-        cgmlvq.set_params( mode=3, rndinit=False )
-
-        proti, omi = cgmlvq._CGMLVQ__set_initial( self.X_train, self.y_train, np.unique(self.y_train) )
-
-        np.testing.assert_array_almost_equal( proti, self.load_data('test_set_initial_mode3_proti.csv') )
-        np.testing.assert_array_almost_equal( omi, self.load_data('test_set_initial_mode3_omi.csv') )
 
 
 if "__main__" == __name__:
