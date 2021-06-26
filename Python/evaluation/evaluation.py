@@ -1,168 +1,399 @@
+from ..cgmlvq import CGMLVQ
 from math import sqrt
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, auc, confusion_matrix, f1_score, precision_score, recall_score, roc_curve
+from sklearn.model_selection import KFold
 
 import csv
 import numpy as np
 import os
+import unittest
 
 
-# start script in same directory
+# wrap in test class to start with intellij
+class Evaluate_CGMLVQ( unittest.TestCase ):
 
-KNN_DATASET = "voting_sim.csv"
-CGMLVQ_DATASET = "voting_sim_embedded.csv"
+    KNN_2CLASS_DATASET = "voting_sim.csv"
+    CGMLVQ_2CLASS_DATASET = "voting_sim_embedded.csv"
 
-START_TEST = 348  # 80/20
+    KNN_MULTICLASS_DATASET = ""
+    CGMLVQ_MULTICLASS_DATASET = ""
 
+    kf = KFold( n_splits=5, random_state=None, shuffle=False )
 
-def cgmlvq_euclid( X, W ):
 
-    return np.linalg.norm( np.array([X-W]).T )**2
+    def test_evaluate( self ):
 
+        self.knn( self.KNN_2CLASS_DATASET )
+        self.cgmlvq( self.CGMLVQ_2CLASS_DATASET )
 
-def cgmlvq_compute_costs( fvec, lbl, prot, plbl ):
 
-    nfv = fvec.shape[0]
-    npp = len( plbl )
-    crout = np.zeros( (1,nfv) )
+    def knn_euclidean_distance( self, row1, row2 ):
 
-    for i in range( 0, nfv ):  # loop through examples
+        distance = 0.0
 
-        fvi = fvec[i,:]  # actual example
-        lbi = lbl[i]     # actual example
+        for i in range(len(row1)-1):
+            distance += (row1[i] - row2[i])**2
 
-        # calculate squared distances to all prototypes
-        dist = np.empty( (npp, 1) )  # define squared distances
-        dist[:] = np.nan
+        return sqrt(distance)
 
-        for j in range( 0, npp ):  # distances from all prototypes
-            dist[j] = cgmlvq_euclid( fvi, prot[j,:] )
 
-        # find the two winning prototypes
-        correct   = np.where( np.array([plbl]) == lbi )[1]  # all correct prototype indices
-        incorrect = np.where( np.array([plbl]) != lbi )[1]  # all wrong   prototype indices
+    def knn_get_neighbors( self, train, test_row, num_neighbors ):
 
-        dJ, JJ = dist[correct].min(0), dist[correct].argmin(0)      # correct winner
-        dK, KK = dist[incorrect].min(0), dist[incorrect].argmin(0)  # wrong winner
+        # Locate the most similar neighbors
 
-        # winner indices
-        jwin = correct[JJ][0]
-        kwin = incorrect[KK][0]
+        distances = list()
 
-        # the class label according to nearest prototype
-        crout[0, i] = plbl[jwin] * (dJ <= dK) + plbl[kwin] * (dJ > dK)
+        for train_row in train:
+            dist = self.knn_euclidean_distance(test_row, train_row)
+            distances.append((train_row, dist))
 
-    return crout
+        distances.sort(key=lambda tup: tup[1])
 
+        neighbors = list()
 
-def cgmlvq_classify( X_test, X_train, y_train ):
+        for i in range(num_neighbors):
+            neighbors.append(distances[i][0])
 
-    lbl = np.ones( (1, X_test.shape[0]) ).T  # fake labels
+        return neighbors
 
-    return cgmlvq_compute_costs( X_test, lbl, X_train, y_train )
 
+    def knn_predict_classification( self, train, test_row, num_neighbors ):
 
-def knn_euclidean_distance( row1, row2 ):
+        # Make a classification prediction with neighbors
 
-    distance = 0.0
+        neighbors = self.knn_get_neighbors(train, test_row, num_neighbors)
 
-    for i in range(len(row1)-1):
-        distance += (row1[i] - row2[i])**2
+        output_values = [row[-1] for row in neighbors]
 
-    return sqrt(distance)
+        prediction = max(set(output_values), key=output_values.count)
 
+        return prediction
 
-def knn_get_neighbors( train, test_row, num_neighbors ):
 
-    # Locate the most similar neighbors
+    def knn_predict( self, train, test, neighbors ):
 
-    distances = list()
+        predicted = []
 
-    for train_row in train:
-        dist = knn_euclidean_distance(test_row, train_row)
-        distances.append((train_row, dist))
+        for test_row in test:
+            predicted.append( self.knn_predict_classification(train, test_row, neighbors) )
 
-    distances.sort(key=lambda tup: tup[1])
+        return predicted
 
-    neighbors = list()
 
-    for i in range(num_neighbors):
-        neighbors.append(distances[i][0])
+    def load_dataset( self, dataset ):
 
-    return neighbors
+        data = []
 
+        csv_file = open( os.path.join(os.getcwd(), "Python\\data sets", dataset) )
 
-def knn_predict_classification( train, test_row, num_neighbors ):
+        csv_reader = csv.reader( csv_file, delimiter=',' )
 
-    # Make a classification prediction with neighbors
+        for row in csv_reader:
+            data.append( row )
 
-    neighbors = knn_get_neighbors(train, test_row, num_neighbors)
+        csv_file.close()
 
-    output_values = [row[-1] for row in neighbors]
+        return data
 
-    prediction = max(set(output_values), key=output_values.count)
 
-    return prediction
+    def cgmlvq( self, dataset ):
 
+        data = np.array( self.load_dataset(dataset) )
 
-def load_dataset( dataset ):
+        X = np.array( data[:,:-1], dtype=np.cdouble )
+        y = np.array( data[:,-1], dtype=int )
 
-    data = []
+        for train_index, test_index in self.kf.split( X ):
 
-    csv_file = open( f"../data sets/{dataset}" )
-
-    csv_reader = csv.reader( csv_file, delimiter=',' )
-
-    for row in csv_reader:
-
-        data.append( row )
-
-    csv_file.close()
-
-    data = np.array( data, dtype=np.cfloat )
-
-    return data, data.shape[0], data.shape[1]
-
-
-def knn():
-
-    # kNN source
-    # https://machinelearningmastery.com/tutorial-to-implement-k-nearest-neighbors-in-python-from-scratch/ 
-
-    data, rows, columns = load_dataset( KNN_DATASET )
-
-    train = data[0:START_TEST, :]
-    test = data[START_TEST:rows, :]
-    y_test = data[START_TEST:rows, -1]
-
-    predicted = []
-
-    for test_row in test:
-
-        predicted.append( knn_predict_classification(train, test_row, int(sqrt(len(train)))) )
-
-    cm = confusion_matrix( y_test, predicted )
-
-    print( "knn confusion matrix" )
-    print( cm )
-
-
-def cgmlvq():
-
-    data, rows, columns = load_dataset( CGMLVQ_DATASET )
-
-    X_train = data[0:START_TEST, 0:columns]
-    X_test = data[START_TEST:rows, 0:columns]
-
-    y_train = np.array( data[0:START_TEST, -1], dtype=int )
-    y_test = np.array( data[START_TEST:rows, -1], dtype=int )
-
-    predicted = cgmlvq_classify( X_test, X_train, y_train )
-
-    cm = confusion_matrix( y_test, predicted[0] )
-
-    print( "cgmlvq confusion matrix" )
-    print( cm )
-
-
-knn()
-cgmlvq()
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            print( f" Aufteilung Durchgang: {np.asarray(np.unique(y_train,return_counts=True)).T}" )
+
+            self.cgmlvq_run( X_train, X_test, y_train, y_test )
+
+
+    def knn( self, dataset ):
+
+        data = np.array( self.load_dataset(dataset) )
+
+        for train_index, test_index in self.kf.split( data ):
+
+            train = np.array(data[train_index], dtype=float)
+            test = np.array(data[test_index], dtype=float)
+            y_test = np.array(data[test_index,-1], dtype=int)
+
+            print( f" Aufteilung Durchgang: {np.asarray(np.unique(train[:,-1],return_counts=True)).T}" )
+
+            self.knn_run( train, test, y_test )
+
+
+    def knn_run( self, train, test, y_test ):
+
+        # kNN source
+        # https://machinelearningmastery.com/tutorial-to-implement-k-nearest-neighbors-in-python-from-scratch/
+
+        predicted = self.knn_predict( train, test, 1 )  # int(sqrt(len(train)))
+
+        fpr, tpr, thresholds = roc_curve( y_test-1, np.array(predicted, dtype=int)-1 )  # must be 0 and 1 labels
+
+        print( f"kNN (k={int(sqrt(len(train)))})" )
+        print( f"---" )
+        print( f"cm: {confusion_matrix(y_test, predicted)}" )
+        print( f"acc: {accuracy_score(y_test, predicted)}" )
+        print( f"prec: {precision_score(y_test, predicted)}" )
+        print( f"rec: {recall_score(y_test, predicted)}" )
+        print( f"f1: {f1_score(y_test, predicted)}" )
+        print( f"auc: {auc(fpr, tpr)}" )
+
+
+    def cgmlvq_run( self, X_train, X_test, y_train, y_test ):
+
+        cgmlvq = CGMLVQ()
+        cgmlvq.set_params()
+        cgmlvq.fit( X_train, y_train )
+
+        predicted = cgmlvq.predict( X_test )
+
+        fpr, tpr, thresholds = roc_curve( y_test-1, predicted-1 )  # must be 0 and 1 labels
+
+        print( f"CGMLVQ ({cgmlvq.get_params()})" )
+        print( f"------" )
+        print( f"cm: {confusion_matrix(y_test, predicted)}" )
+        print( f"acc: {accuracy_score(y_test, predicted)}" )
+        print( f"prec: {precision_score(y_test, predicted)}" )
+        print( f"rec: {recall_score(y_test, predicted)}" )
+        print( f"f1: {f1_score(y_test, predicted)}" )
+        print( f"auc: {auc(fpr, tpr)}" )
+
+
+    # =========================
+    # =========================
+    # Data set: voting_sim
+    # Datensätze: 435
+    # Feature vectors: 435
+    # Verteilung: Klasse 1: 267
+    #             Klasse 2: 168
+    # Kreuzvalidierung: 5
+    # =========================
+    # =========================
+    #
+    #
+    # Durchgang 1: Klasse 1: 215
+    #              Klasse 2: 133
+    #
+    # kNN (k=1)
+    # ---
+    # cm: [[50  2]
+    #      [ 0 35]]
+    # acc: 0.9770114942528736
+    # prec: 1.0
+    # rec: 0.9615384615384616
+    # f1: 0.9803921568627451
+    # auc: 0.9807692307692308
+    #
+    # kNN (k=18)
+    # ---
+    # cm: [[49  3]
+    #      [ 1 34]]
+    # acc: 0.9540229885057471
+    # prec: 0.98
+    # rec: 0.9423076923076923
+    # f1: 0.9607843137254902
+    # auc: 0.9568681318681319
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': True, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[50  2]
+    #      [ 2 33]]
+    # acc: 0.9540229885057471
+    # prec: 0.9615384615384616
+    # rec: 0.9615384615384616
+    # f1: 0.9615384615384616
+    # auc: 0.9521978021978023
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': False, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[50  2]
+    #      [ 2 33]]
+    # acc: 0.9540229885057471
+    # prec: 0.9615384615384616
+    # rec: 0.9615384615384616
+    # f1: 0.9615384615384616
+    # auc: 0.9521978021978023
+    #
+    #
+    # Durchgang 2: Klasse 1: 214
+    #              Klasse 2: 134
+    #
+    # kNN (k=1)
+    # ---
+    # cm: [[48  5]
+    #      [ 1 33]]
+    # acc: 0.9310344827586207
+    # prec: 0.9795918367346939
+    # rec: 0.9056603773584906
+    # f1: 0.9411764705882353
+    # auc: 0.9381243063263042
+    #
+    # kNN (k=18)
+    # ---
+    # cm: [[50  3]
+    #      [ 1 33]]
+    # acc: 0.9540229885057471
+    # prec: 0.9803921568627451
+    # rec: 0.9433962264150944
+    # f1: 0.9615384615384616
+    # auc: 0.956992230854606
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': True, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[46  7]
+    #      [ 0 34]]
+    # acc: 0.9195402298850575
+    # prec: 1.0
+    # rec: 0.8679245283018868
+    # f1: 0.9292929292929293
+    # auc: 0.9339622641509434
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': False, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[46  7]
+    #      [ 1 33]]
+    # acc: 0.9080459770114943
+    # prec: 0.9787234042553191
+    # rec: 0.8679245283018868
+    # f1: 0.9199999999999999
+    # auc: 0.9192563817980023
+    #
+    #
+    # Aufteilung Durchgang 3: Klasse 1: 211
+    #                         Klasse 2: 137
+    #
+    # kNN (k=1)
+    # ---
+    # cm: [[54  2]
+    #      [ 3 28]]
+    # acc: 0.9425287356321839
+    # prec: 0.9473684210526315
+    # rec: 0.9642857142857143
+    # f1: 0.9557522123893805
+    # auc: 0.9337557603686636
+    #
+    # kNN (k=18)
+    # ---
+    # cm: [[55  1]
+    #      [ 4 27]]
+    # acc: 0.9425287356321839
+    # prec: 0.9322033898305084
+    # rec: 0.9821428571428571
+    # f1: 0.9565217391304348
+    # auc: 0.9265552995391705
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': True, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[55  1]
+    #      [ 2 29]]
+    # acc: 0.9655172413793104
+    # prec: 0.9649122807017544
+    # rec: 0.9821428571428571
+    # f1: 0.9734513274336283
+    # auc: 0.9588133640552995
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': False, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[55  1]
+    #      [ 3 28]]
+    # acc: 0.9540229885057471
+    # prec: 0.9482758620689655
+    # rec: 0.9821428571428571
+    # f1: 0.9649122807017544
+    # auc: 0.942684331797235
+    #
+    #
+    # Aufteilung Durchgang 4: Klasse 1: 214
+    #                         Klasse 2: 134
+    #
+    # kNN (k=1)
+    # ---
+    # cm: [[52  1]
+    #      [ 5 29]]
+    # acc: 0.9310344827586207
+    # prec: 0.9122807017543859
+    # rec: 0.9811320754716981
+    # f1: 0.9454545454545454
+    # auc: 0.9170366259711432
+    #
+    # kNN (k=18)
+    # ---
+    # cm: [[53  0]
+    #      [ 1 33]]
+    # acc: 0.9885057471264368
+    # prec: 0.9814814814814815
+    # rec: 1.0
+    # f1: 0.9906542056074767
+    # auc: 0.9852941176470589
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': True, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[51  2]
+    #      [ 3 31]]
+    # acc: 0.9425287356321839
+    # prec: 0.9444444444444444
+    # rec: 0.9622641509433962
+    # f1: 0.9532710280373832
+    # auc: 0.9370144284128745
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': False, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[52  1]
+    #      [ 3 31]]
+    # acc: 0.9540229885057471
+    # prec: 0.9454545454545454
+    # rec: 0.9811320754716981
+    # f1: 0.9629629629629629
+    # auc: 0.9464483906770255
+    #
+    #
+    # Aufteilung Durchgang 5: Klasse 1: 214
+    #                         Klasse 2: 134
+    #
+    # kNN (k=1)
+    # ---
+    # cm: [[46  7]
+    #      [ 3 31]]
+    # acc: 0.8850574712643678
+    # prec: 0.9387755102040817
+    # rec: 0.8679245283018868
+    # f1: 0.9019607843137256
+    # auc: 0.8898446170921198
+    #
+    # kNN (k=18)
+    # ---
+    # cm: [[47  6]
+    #      [ 4 30]]
+    # acc: 0.8850574712643678
+    # prec: 0.9215686274509803
+    # rec: 0.8867924528301887
+    # f1: 0.9038461538461539
+    # auc: 0.8845726970033296
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': True, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[45  8]
+    #      [ 3 31]]
+    # acc: 0.8735632183908046
+    # prec: 0.9375
+    # rec: 0.8490566037735849
+    # f1: 0.8910891089108911
+    # auc: 0.8804106548279689
+    #
+    # CGMLVQ ({'coefficients': 0, 'totalsteps': 50, 'doztr': False, 'mode': 1, 'mu': 0, 'rndinit': False})
+    # ------
+    # cm: [[45  8]
+    #      [ 4 30]]
+    # acc: 0.8620689655172413
+    # prec: 0.9183673469387755
+    # rec: 0.8490566037735849
+    # f1: 0.8823529411764707
+    # auc: 0.8657047724750278
